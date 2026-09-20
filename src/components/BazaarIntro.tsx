@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PortraitFrame } from './PortraitFrame'
+import type { DreadAudio } from '../audio/dreadAudio'
 
 export type BazaarIntroChoice = 'listen' | 'skip'
 
@@ -7,6 +8,8 @@ interface Props {
   open: boolean
   /** Called when the intro finishes (listen or skip). Always marks complete upstream. */
   onComplete: (choice: BazaarIntroChoice) => void
+  /** Shared dread/atmosphere audio (shop bell + melancholy bed). */
+  audio?: DreadAudio
 }
 
 type Step =
@@ -23,13 +26,22 @@ type Step =
  * Cold-open: Kern's Bizarre Bazaar — Rod Serling–cadence frame tale.
  * Separate stylized UI (not AR). Portrait: /portraits/bazaar-host.png
  */
-export function BazaarIntro({ open, onComplete }: Props) {
+export function BazaarIntro({ open, onComplete, audio }: Props) {
   const [step, setStep] = useState<Step>('enter')
 
   if (!open) return null
 
   const finish = (choice: BazaarIntroChoice) => {
+    audio?.setMelancholy(false)
     onComplete(choice)
+  }
+
+  const stepInside = () => {
+    void audio?.ensure().then(() => {
+      audio.playShopBell()
+      audio.setMelancholy(true)
+    })
+    setStep('notice')
   }
 
   return (
@@ -61,7 +73,7 @@ export function BazaarIntro({ open, onComplete }: Props) {
             <button
               type="button"
               className="btn capture-btn bazaar-btn"
-              onClick={() => setStep('notice')}
+              onClick={stepInside}
             >
               Step inside
             </button>

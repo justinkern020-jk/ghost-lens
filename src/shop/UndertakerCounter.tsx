@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PortraitFrame } from '../components/PortraitFrame'
 import { OCCULT_CATALOG, type OccultItemId, type OccultItemDef } from './favorStore'
+import type { DreadAudio } from '../audio/dreadAudio'
 
 interface Props {
   open: boolean
@@ -15,6 +16,8 @@ interface Props {
   postGame?: boolean
   /** True only on Return (accept) ending — Keller took the glass. Must stay false after true-good cure (you keep it). */
   lensReturned?: boolean
+  /** Shared dread/atmosphere audio (shop bell + melancholy bed). */
+  audio?: DreadAudio
 }
 
 function ShopCardArt({ imageKey, name }: { imageKey: string; name: string }) {
@@ -95,11 +98,33 @@ export function UndertakerCounter({
   onEquip,
   postGame = false,
   lensReturned = false,
+  audio,
 }: Props) {
+  useEffect(() => {
+    if (!open || !audio) return
+    let cancelled = false
+    void audio.ensure().then(() => {
+      if (cancelled) return
+      audio.playShopBell()
+      audio.setMelancholy(true)
+    })
+    return () => {
+      cancelled = true
+      audio.setMelancholy(false)
+    }
+  }, [open, audio])
+
   if (!open) return null
+
+  const handleClose = () => {
+    audio?.setMelancholy(false)
+    onClose()
+  }
 
   return (
     <div className="undertaker-panel" role="dialog" aria-label="The Undertaker's Counter">
+      <div className="undertaker-backdrop" aria-hidden />
+      <div className="undertaker-scrim" aria-hidden />
       <header className="undertaker-header">
         <div>
           <p className="ut-kicker">AFTER-HOURS COUNTER</p>
@@ -109,7 +134,7 @@ export function UndertakerCounter({
             {equipped ? ` · Prepared: ${OCCULT_CATALOG.find((c) => c.id === equipped)?.name}` : ''}
           </p>
         </div>
-        <button type="button" className="btn ghost-btn" onClick={onClose}>
+        <button type="button" className="btn ghost-btn" onClick={handleClose}>
           Close the door
         </button>
       </header>

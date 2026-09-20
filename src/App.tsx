@@ -2270,7 +2270,7 @@ export default function App() {
                       : 'OVERLAY FALLBACK'
 
   if (!started && introOpen) {
-    return <BazaarIntro key={introKey} open onComplete={onIntroComplete} />
+    return <BazaarIntro key={introKey} open onComplete={onIntroComplete} audio={audioRef.current} />
   }
 
   if (!started) {
@@ -2654,6 +2654,7 @@ export default function App() {
         onEquip={setEquippedItem}
         postGame={postGame}
         lensReturned={lensReturnedToKeller && !trueGoodEnd}
+        audio={audioRef.current}
       />
 
       {activeVoice && (
@@ -2726,7 +2727,7 @@ export default function App() {
       )}
 
       {started && introOpen && (
-        <BazaarIntro key={introKey} open onComplete={onIntroComplete} />
+        <BazaarIntro key={introKey} open onComplete={onIntroComplete} audio={audioRef.current} />
       )}
 
       <WhisperJournal
