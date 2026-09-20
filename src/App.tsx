@@ -2229,9 +2229,14 @@ export default function App() {
   if (!started) {
     return (
       <div className="boot-screen">
+        <div className="boot-bg" aria-hidden="true" />
+        <div className="boot-scrim" aria-hidden="true" />
         <div className="boot-inner">
           <p className="boot-kicker">FIELD INSTRUMENT</p>
-          <h1>GHOST LENS</h1>
+          <h1 className="boot-title">GHOST LENS</h1>
+          <p className="boot-tagline">
+            A field instrument for what photographs should not keep
+          </p>
           <p className="boot-blurb">
             Point the rear camera at a <em>tombstone</em>, <em>ring</em>,{' '}
             <em>doll</em>, or <em>lake</em> — or a <em>chair</em> for a thin
