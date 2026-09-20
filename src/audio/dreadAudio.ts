@@ -12,7 +12,6 @@ export class DreadAudio {
   private bpm = 56
   private heartOn = false
   private melancholyGain: GainNode | null = null
-  private melancholyOscs: OscillatorNode[] = []
   private melancholyOn = false
   private pianoTimer: number | null = null
   /** Snapshot of dread master gain before melancholy duck (hunt restore). */
@@ -607,8 +606,8 @@ export class DreadAudio {
   }
 
   /**
-   * Soft A-minor / D-minor pad + sparse piano-like tones for bazaar / shop.
-   * Uses a separate gain bus so hunt dread can duck independently.
+   * Melancholy music loop for bazaar / shop — real minor-key piano theme
+   * (chords + melody), not a drone pad. Separate bus from hunt dread.
    */
   setMelancholy(active: boolean) {
     this.melancholyOn = active
@@ -621,59 +620,15 @@ export class DreadAudio {
         this.melancholyGain = ctx.createGain()
         this.melancholyGain.gain.value = 0.0001
         this.melancholyGain.connect(ctx.destination)
-
-        // Intermediate pad bus — LFO breathes here so master fade stays silent when off
-        const padBus = ctx.createGain()
-        padBus.gain.value = 0.5
-        padBus.connect(this.melancholyGain)
-
-        // Soft minor pad: A3, C4, E4 + D for D-minor color
-        const pad: { freq: number; type: OscillatorType; vol: number }[] = [
-          { freq: 220, type: 'sine', vol: 0.045 },     // A3
-          { freq: 261.63, type: 'sine', vol: 0.032 },  // C4
-          { freq: 329.63, type: 'triangle', vol: 0.022 }, // E4
-          { freq: 146.83, type: 'sine', vol: 0.028 },  // D3
-          { freq: 110, type: 'sine', vol: 0.035 },     // A2
-        ]
-        const filter = ctx.createBiquadFilter()
-        filter.type = 'lowpass'
-        filter.frequency.value = 900
-        filter.Q.value = 0.6
-        filter.connect(padBus)
-
-        for (const p of pad) {
-          const o = ctx.createOscillator()
-          o.type = p.type
-          o.frequency.value = p.freq
-          const g = ctx.createGain()
-          g.gain.value = p.vol
-          o.connect(g)
-          g.connect(filter)
-          o.start()
-          this.melancholyOscs.push(o)
-        }
-
-        const lfo = ctx.createOscillator()
-        lfo.type = 'sine'
-        lfo.frequency.value = 0.09
-        const lfoG = ctx.createGain()
-        lfoG.gain.value = 0.08
-        lfo.connect(lfoG)
-        lfoG.connect(padBus.gain)
-        lfo.start()
-        this.melancholyOscs.push(lfo)
       }
-
-      // Duck dread bed quietly while melancholy plays
       if (this.master) {
         this.dreadGainBeforeMelancholy = this.master.gain.value
         this.master.gain.cancelScheduledValues(t)
-        this.master.gain.linearRampToValueAtTime(0.03, t + 0.6)
+        this.master.gain.linearRampToValueAtTime(0.025, t + 0.6)
       }
-
       this.melancholyGain.gain.cancelScheduledValues(t)
-      this.melancholyGain.gain.linearRampToValueAtTime(0.55, t + 1.4)
-      if (!this.pianoTimer) this.scheduleSparsePiano()
+      this.melancholyGain.gain.linearRampToValueAtTime(0.7, t + 1.0)
+      if (!this.pianoTimer) this.scheduleMelancholyMusic()
     } else {
       if (this.pianoTimer) {
         clearTimeout(this.pianoTimer)
@@ -683,7 +638,6 @@ export class DreadAudio {
         this.melancholyGain.gain.cancelScheduledValues(t)
         this.melancholyGain.gain.linearRampToValueAtTime(0.0001, t + 0.8)
       }
-      // Restore dread master if we ducked it (hunt effects may overwrite soon after)
       if (this.master && this.dreadGainBeforeMelancholy != null) {
         const restore = Math.max(0.04, this.dreadGainBeforeMelancholy)
         this.master.gain.cancelScheduledValues(t)
@@ -693,57 +647,100 @@ export class DreadAudio {
     }
   }
 
-  /** Convenience alias — ensure context then start melancholy bed. */
+  /** Convenience — ensure context then start melancholy music. */
   async startMelancholy() {
     await this.ensure()
     this.setMelancholy(true)
   }
 
-  private scheduleSparsePiano() {
-    const tick = () => {
+  /**
+   * Looping 8-bar phrase in A minor (~66 BPM):
+   * Am – F – C – Em – Am – Dm – E – Am
+   * with a descending mournful melody over soft chords.
+   */
+  private scheduleMelancholyMusic() {
+    const beat = 60 / 66 // ~0.909s
+    // One bar = 4 beats
+    const bar = beat * 4
+    // Chord roots + triads (freq Hz)
+    const progression: { bass: number; mid: number; high: number; melody: number[] }[] = [
+      { bass: 110.0, mid: 164.81, high: 220.0, melody: [440.0, 392.0, 349.23, 329.63] }, // Am
+      { bass: 87.31, mid: 174.61, high: 220.0, melody: [349.23, 329.63, 293.66, 261.63] }, // F
+      { bass: 130.81, mid: 164.81, high: 196.0, melody: [392.0, 349.23, 329.63, 293.66] }, // C
+      { bass: 82.41, mid: 164.81, high: 246.94, melody: [329.63, 293.66, 261.63, 246.94] }, // Em
+      { bass: 110.0, mid: 164.81, high: 220.0, melody: [440.0, 415.3, 392.0, 349.23] }, // Am
+      { bass: 73.42, mid: 146.83, high: 220.0, melody: [293.66, 277.18, 261.63, 220.0] }, // Dm
+      { bass: 82.41, mid: 164.81, high: 207.65, melody: [329.63, 311.13, 293.66, 246.94] }, // E
+      { bass: 110.0, mid: 164.81, high: 220.0, melody: [440.0, 392.0, 349.23, 329.63] }, // Am resolve
+    ]
+
+    let barIndex = 0
+    const playBar = () => {
       if (!this.melancholyOn || !this.ctx || !this.melancholyGain) {
         this.pianoTimer = null
         return
       }
-      this.softPianoNote()
-      // Sparse: every 2.5–5.5s
-      this.pianoTimer = window.setTimeout(tick, 2500 + Math.random() * 3000)
+      const ctx = this.ctx
+      const bus = this.melancholyGain
+      const t0 = ctx.currentTime + 0.05
+      const ch = progression[barIndex % progression.length]!
+      barIndex++
+
+      // Soft sustaining chord
+      for (const [freq, vol] of [
+        [ch.bass, 0.055],
+        [ch.mid, 0.032],
+        [ch.high, 0.028],
+      ] as const) {
+        const o = ctx.createOscillator()
+        o.type = freq < 120 ? 'sine' : 'triangle'
+        o.frequency.value = freq
+        const g = ctx.createGain()
+        g.gain.value = 0.0001
+        const f = ctx.createBiquadFilter()
+        f.type = 'lowpass'
+        f.frequency.value = 1400
+        o.connect(f)
+        f.connect(g)
+        g.connect(bus)
+        g.gain.exponentialRampToValueAtTime(vol, t0 + 0.08)
+        g.gain.exponentialRampToValueAtTime(vol * 0.55, t0 + bar * 0.7)
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + bar + 0.15)
+        o.start(t0)
+        o.stop(t0 + bar + 0.2)
+      }
+
+      // Melody — four quarter notes, piano-ish
+      ch.melody.forEach((freq, i) => {
+        const at = t0 + i * beat
+        const o = ctx.createOscillator()
+        o.type = 'triangle'
+        o.frequency.value = freq
+        const o2 = ctx.createOscillator()
+        o2.type = 'sine'
+        o2.frequency.value = freq * 2.002
+        const g = ctx.createGain()
+        g.gain.value = 0.0001
+        const f = ctx.createBiquadFilter()
+        f.type = 'lowpass'
+        f.frequency.value = 2200
+        o.connect(f)
+        o2.connect(f)
+        f.connect(g)
+        g.connect(bus)
+        g.gain.exponentialRampToValueAtTime(0.07, at + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.0001, at + beat * 0.95)
+        o.start(at)
+        o2.start(at)
+        o.stop(at + beat + 0.05)
+        o2.stop(at + beat + 0.05)
+      })
+
+      this.pianoTimer = window.setTimeout(playBar, bar * 1000)
     }
-    this.pianoTimer = window.setTimeout(tick, 1800)
+    playBar()
   }
 
-  /** Soft decaying piano-like tone in A minor / D minor. */
-  private softPianoNote() {
-    if (!this.ctx || !this.melancholyGain) return
-    const ctx = this.ctx
-    const t = ctx.currentTime
-    // A minor + D minor pool
-    const notes = [220, 261.63, 293.66, 329.63, 349.23, 440, 523.25, 196, 146.83]
-    const freq = notes[Math.floor(Math.random() * notes.length)]!
-    const o = ctx.createOscillator()
-    o.type = 'triangle'
-    o.frequency.value = freq
-    const o2 = ctx.createOscillator()
-    o2.type = 'sine'
-    o2.frequency.value = freq * 2
-    const g = ctx.createGain()
-    g.gain.value = 0.0001
-    const f = ctx.createBiquadFilter()
-    f.type = 'lowpass'
-    f.frequency.value = 1800
-    o.connect(f)
-    o2.connect(f)
-    f.connect(g)
-    g.connect(this.melancholyGain)
-    const vol = 0.04 + Math.random() * 0.03
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.02)
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4 + Math.random() * 1.2)
-    o.start(t)
-    o2.start(t)
-    const dur = 3.2
-    o.stop(t + dur)
-    o2.stop(t + dur)
-  }
 
   stop() {
     if (this.clickTimer) clearTimeout(this.clickTimer)
@@ -751,7 +748,6 @@ export class DreadAudio {
     if (this.heartTimer) clearTimeout(this.heartTimer)
     if (this.pianoTimer) clearTimeout(this.pianoTimer)
     this.melancholyOn = false
-    this.melancholyOscs = []
     this.melancholyGain = null
     void this.ctx?.close()
     this.ctx = null
