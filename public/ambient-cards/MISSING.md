@@ -1,13 +1,9 @@
 # Ambient card art still needed
 
-Present (5): cracked-teacup, empty-photo-frame, pocket-watch, wall-clock, worn-gloves
+Present (9): cracked-teacup, empty-photo-frame, pocket-watch, wall-clock, worn-gloves, wilted-bouquet, child-drawing, rusty-key, fogged-mirror
 
-Missing PNGs under `public/ambient-cards/{imageKey}.png` (59):
+Missing PNGs under `public/ambient-cards/{imageKey}.png` (55):
 
-- wilted-bouquet
-- child-drawing
-- rusty-key
-- fogged-mirror
 - lonely-shoe
 - unopened-letter
 - rain-umbrella
