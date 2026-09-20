@@ -209,9 +209,18 @@ Many mundane props can be inspected without starting a fight. Hold them in frame
 
 **Dev:** `?forceScan=1` or `?forceScan=<id>` (e.g. `empty_photo_frame`).
 
+## Cold open — Kern's Bizarre Bazaar
+
+First launch (before the hunt boot UI) drops you in a stylized **black-and-white bazaar** screen — not AR. The proprietor (portrait `public/portraits/bazaar-host.png`) notices you eyeing a camera in the display case and offers a Rod Serling–cadence frame tale: an eccentric uncle in the hunter circles left you the lens after a quiet death; darker channels; men like **Herr Keller** may want it back later. **Listen** plays the setup; **Not now** skips with a shorter line. Completing either path sets `introSeen` on the save blob.
+
+- **Replay intro** — Save / Backup panel
+- **Dev:** `?forceIntro=1`
+
+Existing saves from before this feature are grandfathered (`introSeen: true`) so mid-hunt players are not interrupted.
+
 ## Portrait slots (UI panels)
 
-Undertaker shop, mysterious strangers, and Herr Keller are **separate UI screens** — not photoreal AR people. Drop AI art into `public/portraits/`:
+Undertaker shop, mysterious strangers, Herr Keller, and the bazaar cold-open are **separate UI screens** — not photoreal AR people. Drop AI art into `public/portraits/`:
 
 | File | Panel |
 |------|--------|

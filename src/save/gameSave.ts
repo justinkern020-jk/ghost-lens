@@ -72,6 +72,8 @@ export interface GhostLensSave {
   /** Number of field-authentic seals (real dusk, no force flags). */
   fieldSealCount: number
   undertakerNotes: string[]
+  /** Cold-open bazaar intro has been completed (or grandfathered). */
+  introSeen: boolean
 }
 
 export function emptySave(): GhostLensSave {
@@ -104,6 +106,7 @@ export function emptySave(): GhostLensSave {
     firstCatchKinds: [],
     fieldSealCount: 0,
     undertakerNotes: [],
+    introSeen: false,
   }
 }
 
@@ -233,6 +236,12 @@ function readSaveRaw(): GhostLensSave | null {
     // Migrate old blob field `favor` → `insight`
     if (typeof legacy.favor === 'number') {
       merged.insight = Math.max(merged.insight || 0, Math.floor(legacy.favor))
+    }
+    // Pre-intro saves: don't force mid-hunt players through the cold open
+    if (!('introSeen' in legacy)) {
+      merged.introSeen = true
+    } else {
+      merged.introSeen = Boolean(legacy.introSeen)
     }
     return merged
   } catch {
@@ -384,6 +393,12 @@ export function importSaveJson(json: string): { ok: true; save: GhostLensSave } 
       ),
       clearCount: Math.max(0, Math.floor(Number(parsed.clearCount) || 0)),
       fieldSealCount: Math.max(0, Math.floor(Number(parsed.fieldSealCount) || 0)),
+      introSeen:
+        typeof parsed.introSeen === 'boolean'
+          ? parsed.introSeen
+          : 'introSeen' in parsed
+            ? Boolean(parsed.introSeen)
+            : true,
     }
     cache = merged
     writeSaveRaw(merged)

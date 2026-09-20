@@ -12,5 +12,6 @@ Drop PNGs here; the UI loads them automatically. If a file is missing, a labeled
 | `stranger-empty_seat.png` | Stranger: caretaker (crepe / demon) |
 | `herr-keller.png` | Epilogue Van Helsing–type (Herr Keller) |
 | `spookbox-maker.png` | Spookbox Maker (Justin-coded workbench stranger) |
+| `bazaar-host.png` | Cold-open: Kern's Bizarre Bazaar proprietor (Serling cadence) |
 
 Optional aliases also tried: `stranger-candle.png` → wet_threshold, `stranger-church.png` → grave_measure, etc.

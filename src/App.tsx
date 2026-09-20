@@ -79,6 +79,7 @@ import {
 
 import { WerewolfAttack } from './components/WerewolfAttack'
 import { AmbientScanCard } from './components/AmbientScanCard'
+import { BazaarIntro, type BazaarIntroChoice } from './components/BazaarIntro'
 import {
   grantKellerCharm,
   hasKellerCharm,
@@ -227,6 +228,15 @@ function readForceEpilogue(): boolean {
   }
 }
 
+function readForceIntro(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('forceIntro') === '1'
+  } catch {
+    return false
+  }
+}
+
 function readForceStranger(): string | null {
   try {
     const q = new URLSearchParams(window.location.search)
@@ -260,6 +270,15 @@ export default function App() {
   const [stunned, setStunned] = useState(false)
   const [dead, setDead] = useState(false)
   const [started, setStarted] = useState(false)
+  const [introOpen, setIntroOpen] = useState(() => {
+    if (readForceIntro()) return true
+    try {
+      return !getSave().introSeen
+    } catch {
+      return true
+    }
+  })
+  const [introKey, setIntroKey] = useState(0)
   const [forceBoss, setForceBoss] = useState(readForceBoss)
   const [forcePlayground, setForcePlayground] = useState(readForcePlayground)
   const [forceTrial, setForceTrial] = useState(readForceTrial)
@@ -1425,6 +1444,17 @@ export default function App() {
     setActiveClue(null)
   }
 
+  const onIntroComplete = (_choice: BazaarIntroChoice) => {
+    patchSave({ introSeen: true })
+    setIntroOpen(false)
+  }
+
+  const openIntroReplay = () => {
+    setSavePanelOpen(false)
+    setIntroKey((k) => k + 1)
+    setIntroOpen(true)
+  }
+
   const startExperience = async () => {
     setStarted(true)
     await audioRef.current.ensure()
@@ -2131,6 +2161,10 @@ export default function App() {
                       ? 'WEBXR READY'
                       : 'OVERLAY FALLBACK'
 
+  if (!started && introOpen) {
+    return <BazaarIntro key={introKey} open onComplete={onIntroComplete} />
+  }
+
   if (!started) {
     return (
       <div className="boot-screen">
@@ -2247,7 +2281,7 @@ export default function App() {
             {forceTrial ? 'Force trial (test): ON' : 'Force trial (test): OFF'}
           </button>
           <p className="boot-hint">
-            Dev: <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
+            Dev: <code>?forceIntro=1</code> · <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
             <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
             <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
@@ -2524,6 +2558,13 @@ export default function App() {
             <button type="button" className="btn" onClick={() => downloadSaveFile()}>
               Download save JSON
             </button>
+            <button
+              type="button"
+              className="btn ghost-btn"
+              onClick={openIntroReplay}
+            >
+              Replay intro
+            </button>
             <button type="button" className="btn ghost-btn" onClick={() => setSavePanelOpen(false)}>
               Close
             </button>
@@ -2561,6 +2602,10 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {started && introOpen && (
+        <BazaarIntro key={introKey} open onComplete={onIntroComplete} />
       )}
 
       <WhisperJournal
