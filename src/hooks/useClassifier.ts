@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   CANDIDATE_LABELS,
   SECRET_TRIGGER_LABELS,
+  SPOOKBOX_MAKER_LABELS,
   PLAYGROUND_LABELS,
   COLLECTIBLE_SCENE_LABELS,
   STRANGER_SCENE_LABELS,
@@ -50,6 +51,8 @@ export function useClassifier() {
     secretConfidence: 0,
     ambientScanLabel: null,
     ambientScanConfidence: 0,
+    spookboxMakerLabel: null,
+    spookboxMakerConfidence: 0,
   })
   const [sustainedTarget, setSustainedTarget] = useState<TargetType | null>(null)
   const [ghostShouldShow, setGhostShouldShow] = useState(false)
@@ -64,6 +67,9 @@ export function useClassifier() {
   const [sustainedTrial, setSustainedTrial] = useState(false)
   const [sustainedSecret, setSustainedSecret] = useState(false)
   const [sustainedAmbientScanLabel, setSustainedAmbientScanLabel] = useState<
+    string | null
+  >(null)
+  const [sustainedSpookboxMakerLabel, setSustainedSpookboxMakerLabel] = useState<
     string | null
   >(null)
 
@@ -88,6 +94,9 @@ export function useClassifier() {
   const ambientSustainRef = useRef<number | null>(null)
   const ambientCandidateRef = useRef<string | null>(null)
   const lastAmbientSeenRef = useRef<number | null>(null)
+  const makerSustainRef = useRef<number | null>(null)
+  const makerCandidateRef = useRef<string | null>(null)
+  const lastMakerSeenRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -201,6 +210,17 @@ export function useClassifier() {
         }
       }
 
+
+      let bestMaker: string | null = null
+      let bestMakerScore = 0
+      for (const mLabel of SPOOKBOX_MAKER_LABELS) {
+        const s = scores[mLabel] ?? 0
+        if (s > bestMakerScore) {
+          bestMakerScore = s
+          bestMaker = mLabel
+        }
+      }
+
       const secretScore = Math.max(0, ...SECRET_TRIGGER_LABELS.map((l) => scores[l] ?? 0))
       const trialScore = scores[TRIAL_TRIGGER_LABEL] ?? 0
 
@@ -255,6 +275,13 @@ export function useClassifier() {
         secretScore > negativeMax * 0.8 &&
         (!accepted || secretScore >= bestScore * 1.02)
 
+      const MAKER_CONFIDENCE_THRESHOLD = 0.26
+      const makerHit =
+        bestMaker &&
+        bestMakerScore >= MAKER_CONFIDENCE_THRESHOLD &&
+        bestMakerScore > negativeMax * 0.85 &&
+        (!accepted || bestMakerScore >= bestScore * 0.9)
+
       const label = accepted ? bestTarget : null
       const confidence = accepted ? bestScore : bestScore
       const trialLabel: TrialTriggerLabel | null = trialHit
@@ -276,6 +303,8 @@ export function useClassifier() {
         secretConfidence: secretScore,
         ambientScanLabel: ambientHit ? bestAmbient : null,
         ambientScanConfidence: bestAmbientScore,
+        spookboxMakerLabel: makerHit ? bestMaker : null,
+        spookboxMakerConfidence: bestMakerScore,
       })
       setPlaygroundDetected(!!playgroundHit)
 
@@ -366,6 +395,30 @@ export function useClassifier() {
           t - lastAmbientSeenRef.current > FLEE_MS
         ) {
           setSustainedAmbientScanLabel(null)
+        }
+      }
+
+
+      if (makerHit && bestMaker) {
+        lastMakerSeenRef.current = t
+        if (makerCandidateRef.current !== bestMaker) {
+          makerCandidateRef.current = bestMaker
+          makerSustainRef.current = t
+          setSustainedSpookboxMakerLabel(null)
+        } else if (
+          makerSustainRef.current &&
+          t - makerSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedSpookboxMakerLabel(bestMaker)
+        }
+      } else {
+        makerCandidateRef.current = null
+        makerSustainRef.current = null
+        if (
+          lastMakerSeenRef.current &&
+          t - lastMakerSeenRef.current > FLEE_MS
+        ) {
+          setSustainedSpookboxMakerLabel(null)
         }
       }
 
@@ -478,6 +531,12 @@ export function useClassifier() {
     ambientSustainRef.current = null
   }, [])
 
+  const clearSustainedSpookboxMaker = useCallback(() => {
+    setSustainedSpookboxMakerLabel(null)
+    makerCandidateRef.current = null
+    makerSustainRef.current = null
+  }, [])
+
   return {
     ready,
     loadingMsg,
@@ -492,6 +551,7 @@ export function useClassifier() {
     sustainedTrial,
     sustainedSecret,
     sustainedAmbientScanLabel,
+    sustainedSpookboxMakerLabel,
     classifyFrame,
     resetGhost,
     forceManifest,
@@ -499,5 +559,6 @@ export function useClassifier() {
     clearSustainedStranger,
     clearSustainedCollectible,
     clearSustainedAmbientScan,
+    clearSustainedSpookboxMaker,
   }
 }

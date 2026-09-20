@@ -76,3 +76,12 @@ export function readNgPlusActive(): boolean {
 export function kellerCharmPerkActive(): boolean {
   return hasKellerCharm()
 }
+
+/** Spend the charm in trade (Spookbox Maker). Removes perk; records traded flag externally. */
+export function spendKellerCharm(): void {
+  try {
+    localStorage.removeItem(CHARM_KEY)
+  } catch {
+    /* ignore */
+  }
+}

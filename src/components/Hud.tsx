@@ -24,6 +24,7 @@ interface Props {
   isBoss?: boolean
   isDemon?: boolean
   isTrial?: boolean
+  isSecret?: boolean
   /** Multi-phase capture progress 0..phases */
   capturePhase?: number
   capturePhases?: number
@@ -60,6 +61,7 @@ export function Hud({
   isBoss,
   isDemon,
   isTrial = false,
+  isSecret = false,
   capturePhase = 0,
   capturePhases = 1,
   uniqueSealed = 0,
@@ -74,7 +76,7 @@ export function Hud({
   const pct = Math.round(detection.confidence * 100)
   const healthPct = Math.round(Math.max(0, Math.min(1, health)) * 100)
   const beatSec = Math.max(0.28, 60 / Math.max(bpm, 40))
-  const endgame = !!(isBoss || isDemon)
+  const endgame = !!(isBoss || isDemon || isSecret)
   const critical = health < 0.35 || proximity > 0.85 || endgame
 
   const captureLabel = isTrial
@@ -83,6 +85,10 @@ export function Hud({
     ? capturePhase >= capturePhases - 1
       ? 'Seal'
       : `Ritual ${capturePhase + 1}/${capturePhases}`
+    : isSecret
+      ? capturePhase >= capturePhases - 1
+        ? 'Final seal'
+        : `Capture ${capturePhase + 1}/${capturePhases}`
     : isBoss
       ? capturePhase >= capturePhases - 1
         ? 'Seal'
@@ -93,6 +99,8 @@ export function Hud({
     ? 'DEMON'
     : isBoss
       ? 'WARDEN'
+      : isSecret
+        ? 'ARCHIVIST'
       : isTrial
         ? 'TRIAL'
         : healthPct >= 70
@@ -103,7 +111,7 @@ export function Hud({
 
   return (
     <div
-      className={`hud ${isBoss ? 'hud-boss' : ''} ${isDemon ? 'hud-demon' : ''} ${isTrial ? 'hud-trial' : ''}`}
+      className={`hud ${isBoss ? 'hud-boss' : ''} ${isDemon ? 'hud-demon' : ''} ${isSecret ? 'hud-secret' : ''} ${isTrial ? 'hud-trial' : ''}`}
       id="ar-overlay"
     >
       <div className="hud-top">
@@ -185,6 +193,10 @@ export function Hud({
             ) : isTrial && ghostVisible ? (
               <>
                 <strong>The Thin One</strong> · lesser echo · trial · lens alone
+              </>
+            ) : isSecret && ghostVisible ? (
+              <>
+                <strong>The Pale Archivist</strong> · vault seal · Spookbox for the finish
               </>
             ) : detection.label ? (
               <>

@@ -69,6 +69,19 @@ export const COLLECTIBLE_SCENE_LABELS = [
   'tackle box',
 ] as const
 
+
+/** CLIP labels for the Spookbox Maker meet (dusk + workshop/garage/radio). */
+export const SPOOKBOX_MAKER_LABELS = [
+  'radio',
+  'toolbox',
+  'garage',
+  'workshop',
+  'electronics',
+  'circuit board',
+  'workbench',
+] as const
+export type SpookboxMakerLabel = (typeof SPOOKBOX_MAKER_LABELS)[number]
+
 /** CLIP labels that can summon the NG+ secret haunt (crypt). */
 export const SECRET_TRIGGER_LABELS = [
   'crypt',
@@ -81,6 +94,7 @@ export const SECRET_TRIGGER_LABELS = [
 export const CANDIDATE_LABELS = [
   ...allAmbientScanLabels(),
   ...SECRET_TRIGGER_LABELS,
+  ...SPOOKBOX_MAKER_LABELS,
   ...TARGET_LABELS,
   TRIAL_TRIGGER_LABEL,
   ...PLAYGROUND_LABELS,
@@ -111,6 +125,8 @@ export interface DetectionResult {
   secretConfidence?: number
   ambientScanLabel?: string | null
   ambientScanConfidence?: number
+  spookboxMakerLabel?: string | null
+  spookboxMakerConfidence?: number
 }
 
 export interface SpiritLore {
@@ -159,8 +175,11 @@ export const BOSS_CAPTURE_PHASES = 3
 /** Capture taps required to seal the Playground Demon (endgame). */
 export const DEMON_CAPTURE_PHASES = 5
 
-export function isMultiSealKind(kind: SpiritKind | null): kind is 'boss' | 'demon' {
-  return kind === 'boss' || kind === 'demon'
+/** Capture taps required to seal The Pale Archivist (final needs Spookbox stun). */
+export const SECRET_CAPTURE_PHASES = 3
+
+export function isMultiSealKind(kind: SpiritKind | null): kind is 'boss' | 'demon' | 'secret' {
+  return kind === 'boss' || kind === 'demon' || kind === 'secret'
 }
 
 export function isTrialKind(kind: SpiritKind | null): kind is 'trial' {
@@ -179,5 +198,6 @@ export function isMainSealTarget(kind: string | null | undefined): kind is Targe
 export function capturePhasesFor(kind: SpiritKind | null): number {
   if (kind === 'demon') return DEMON_CAPTURE_PHASES
   if (kind === 'boss') return BOSS_CAPTURE_PHASES
+  if (kind === 'secret') return SECRET_CAPTURE_PHASES
   return 1
 }

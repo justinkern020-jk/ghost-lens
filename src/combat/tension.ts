@@ -124,7 +124,7 @@ export const SECRET_TENSION: TensionProfile = {
   hitDamage: 0.38,
   passiveDrainPerSec: 0.05,
   captureHeal: 0.32,
-  phaseKnockback: 0,
+  phaseKnockback: 0.2,
 }
 
 export const DEMON_TENSION: TensionProfile = {

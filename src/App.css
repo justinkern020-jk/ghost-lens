@@ -2657,3 +2657,111 @@ html, body, #root {
 .ambient-scan-clue.clue-shop { border-left-color: #5a6a50; }
 .ambient-scan-clue.clue-stranger { border-left-color: #6a5070; }
 .ambient-scan-clue.clue-relic { border-left-color: #706050; }
+
+
+/* —— Spookbox Maker / ITC call / protector stun —— */
+.spookbox-maker-portrait { margin: 0 auto 12px; }
+.spookbox-equip-btn.on {
+  border-color: #6a9e7a;
+  color: #b8e0c4;
+}
+.spookbox-call-btn {
+  border-color: #7a6aaa !important;
+  color: #d4c8f0 !important;
+  animation: spookbox-pulse 1.4s ease-in-out infinite;
+}
+@keyframes spookbox-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(120, 100, 180, 0.35); }
+  50% { box-shadow: 0 0 12px 2px rgba(120, 100, 180, 0.55); }
+}
+.spookbox-call {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 3, 8, 0.82);
+}
+.spookbox-call-card {
+  width: min(380px, 94vw);
+  background: linear-gradient(180deg, #16141c, #0a0810);
+  border: 1px solid #5a4e7a;
+  padding: 20px 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+}
+.spookbox-call-kicker {
+  font: 10px/1 "Courier New", monospace;
+  letter-spacing: 0.2em;
+  color: #8a7aaa;
+  text-align: center;
+  margin: 0 0 14px;
+}
+.spookbox-dial {
+  font: 14px/1.4 "Courier New", monospace;
+  color: #9ec8a8;
+  background: #060508;
+  border: 1px solid #3a4a3e;
+  padding: 14px 10px;
+  text-align: center;
+  letter-spacing: 0.12em;
+  min-height: 48px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.spookbox-noise { display: block; word-break: break-all; }
+.spookbox-call-copy {
+  color: #d8c8b0;
+  font: 14px/1.5 Georgia, serif;
+  margin: 0 0 14px;
+}
+.spookbox-call-copy.dim { color: #8a7a68; }
+.spookbox-call-copy.emphasis {
+  color: #c8e8d0;
+  text-align: center;
+  font-weight: 600;
+}
+.protector-stun-vfx {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: protector-flash 1.4s ease-out forwards;
+}
+.protector-ring {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid rgba(160, 220, 180, 0.85);
+  box-shadow: 0 0 40px 12px rgba(120, 200, 150, 0.35);
+  animation: protector-ring 1.2s ease-out forwards;
+}
+.protector-label {
+  position: relative;
+  z-index: 1;
+  font: 12px/1 "Courier New", monospace;
+  letter-spacing: 0.28em;
+  color: #c8f0d4;
+  text-shadow: 0 0 12px rgba(100, 200, 140, 0.8);
+}
+@keyframes protector-flash {
+  0% { background: rgba(140, 220, 170, 0.28); opacity: 1; }
+  40% { background: rgba(100, 180, 140, 0.12); }
+  100% { background: transparent; opacity: 0; }
+}
+@keyframes protector-ring {
+  0% { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.hud-secret .capture-btn,
+.hud.hud-secret .capture-btn {
+  border-color: #6a5a8a;
+}
+.app-secret .ar-threat-flash {
+  background: radial-gradient(ellipse at center, rgba(80, 60, 120, 0.35), transparent 70%);
+}

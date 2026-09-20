@@ -49,6 +49,8 @@ import {
 } from './shop/strangerClues'
 import { UndertakerCounter } from './shop/UndertakerCounter'
 import { StrangerVignette } from './components/StrangerVignette'
+import { SpookboxMaker, type SpookboxMakerChoice } from './components/SpookboxMaker'
+import { SpookboxCall, ProtectorStunVfx } from './components/SpookboxCall'
 import { WhisperJournal } from './components/WhisperJournal'
 import { RelicsJournal } from './components/RelicsJournal'
 import { DemonFinale } from './components/DemonFinale'
@@ -62,10 +64,23 @@ import { WerewolfAttack } from './components/WerewolfAttack'
 import { AmbientScanCard } from './components/AmbientScanCard'
 import {
   grantKellerCharm,
+  hasKellerCharm,
   kellerCharmPerkActive,
   KELLER_CHARM,
   readNgPlusActive,
+  spendKellerCharm,
 } from './ngplus/kellerCharm'
+import {
+  grantSpookbox,
+  hasSpookbox,
+  markCharmTradedForSpookbox,
+  markMetSpookboxMaker,
+  readForceArchivistStun,
+  readForceSpookbox,
+  readForceSpookboxMaker,
+  SPOOKBOX,
+  SPOOKBOX_MAKER_MEET,
+} from './ngplus/spookbox'
 import { cipherLetterFor } from './ngplus/cipher'
 import {
   ambientScanForLabel,
@@ -243,6 +258,18 @@ export default function App() {
   // Cipher helper retained for NG+ polaroid stamps / status
   void cipherLetterFor
   const [secretUnlocked, setSecretUnlocked] = useState(() => isSecretUnlocked())
+  const [spookboxOwned, setSpookboxOwned] = useState(() => {
+    readForceSpookbox()
+    return hasSpookbox()
+  })
+  const [spookboxEquipped, setSpookboxEquipped] = useState(false)
+  const [makerOpen, setMakerOpen] = useState(false)
+  const [hasCharm, setHasCharm] = useState(() => hasKellerCharm())
+  const [spookboxCallOpen, setSpookboxCallOpen] = useState(false)
+  const [archivistStunned, setArchivistStunned] = useState(false)
+  const [protectorVfx, setProtectorVfx] = useState(false)
+  const archivistStunnedRef = useRef(false)
+  const makerShownRef = useRef(false)
   const [clearCount, setClearCount] = useState(() => loadClearCount())
   const [keptDemonPhoto, setKeptDemonPhoto] = useState(() => hasKeptDemonPolaroid())
   const [activeAmbientScan, setActiveAmbientScan] = useState<AmbientScanEntry | null>(null)
@@ -366,6 +393,8 @@ export default function App() {
     sustainedSecret,
     sustainedAmbientScanLabel,
     clearSustainedAmbientScan,
+    sustainedSpookboxMakerLabel,
+    clearSustainedSpookboxMaker,
     classifyFrame,
     resetGhost,
     forceManifest,
@@ -704,13 +733,15 @@ export default function App() {
         hushUntilRef.current = 0
         drainHaltUntilRef.current = 0
         approachSlowUntilRef.current = 0
+        archivistStunnedRef.current = readForceArchivistStun()
+        setArchivistStunned(archivistStunnedRef.current)
         if (kind === 'demon') {
           setStatusLine('The Empty Seat answers. Burn the photographs into the seal.')
         } else if (kind === 'boss') {
           setStatusLine('The Threshold Warden answers. Seal it in phases.')
         } else if (kind === 'secret') {
           setStatusLine(
-            `The Pale Archivist answers. ${SECRET_GHOST.epithet}. The cipher led here.`,
+            `The Pale Archivist answers. ${SECRET_GHOST.epithet}. Seal in phases — Spookbox for the finish.`,
           )
         } else if (kind === 'trial') {
           if (!trialOnboardedRef.current) {
@@ -1022,6 +1053,46 @@ export default function App() {
   }, [started])
 
 
+
+
+  // Spookbox Maker — dusk + workshop/garage/radio/toolbox (or force)
+  useEffect(() => {
+    if (!started || dead || makerOpen || activeClue || cinematicLock) return
+    if (makerShownRef.current && !readForceSpookboxMaker()) return
+    // Don't interrupt fights
+    if (activeKindRef.current && (ghostShouldShow || appearAtRef.current)) return
+
+    const forced = readForceSpookboxMaker()
+    const placeHit = !!sustainedSpookboxMakerLabel
+    if (!forced && (!dusk.allowed || !placeHit)) return
+
+    makerShownRef.current = true
+    markMetSpookboxMaker()
+    setMakerOpen(true)
+    setStatusLine(SPOOKBOX_MAKER_MEET.copy)
+    clearSustainedSpookboxMaker()
+    if (forced) {
+      try {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has('forceSpookboxMaker')) {
+          url.searchParams.delete('forceSpookboxMaker')
+          window.history.replaceState({}, '', url.toString())
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    makerOpen,
+    activeClue,
+    cinematicLock,
+    sustainedSpookboxMakerLabel,
+    ghostShouldShow,
+    clearSustainedSpookboxMaker,
+  ])
 
   // Hidden lore collectibles — sustained ghost-tied props unlock once
   useEffect(() => {
@@ -1469,16 +1540,19 @@ export default function App() {
   }
 
   const capture = () => {
-    if (cinematicLock || finaleActive || epilogueOpen) return
+    if (cinematicLock || finaleActive || epilogueOpen || makerOpen || spookboxCallOpen) return
     const kind = activeKindRef.current
     const demonShowing =
       kind === 'demon' &&
       (forcePlayground || playgroundArrived || sustainedPlayground || ghostShouldShow)
     const trialShowing =
       kind === 'trial' && (sustainedTrial || forceTrial || ghostShouldShow)
+    const secretShowing =
+      kind === 'secret' &&
+      (ghostShouldShow || sustainedSecret || readForceSecretGhost())
     if (
-      (!sustainedTarget && !demonShowing && !trialShowing) ||
-      (!ghostShouldShow && !demonShowing && !trialShowing) ||
+      (!sustainedTarget && !demonShowing && !trialShowing && !secretShowing) ||
+      (!ghostShouldShow && !demonShowing && !trialShowing && !secretShowing) ||
       dead ||
       !dusk.allowed ||
       capturing
@@ -1512,6 +1586,12 @@ export default function App() {
             'Fourth — one more and the grounds go quiet.',
           ]
           setStatusLine(labels[Math.min(next - 1, labels.length - 1)])
+        } else if (kind === 'secret') {
+          setStatusLine(
+            next === 1
+              ? 'First vault seal holds — the catalog wavers.'
+              : 'Second seal holds — Spookbox for the finishing blow.',
+          )
         } else {
           setStatusLine(
             next === 1
@@ -1520,6 +1600,15 @@ export default function App() {
           )
         }
         audioRef.current.playHit()
+        return
+      }
+      // Final seal — Pale Archivist requires Spookbox protector stun
+      if (kind === 'secret' && !archivistStunnedRef.current && !readForceArchivistStun()) {
+        setStatusLine(
+          spookboxOwned
+            ? 'The vault will not take the final seal. Activate the Spookbox — call a protector. Only way to land the finishing blow.'
+            : 'The vault will not take the final seal. You need a Spookbox — and a protector’s touch.',
+        )
         return
       }
     }
@@ -1607,6 +1696,59 @@ export default function App() {
     setEquippedItem(null)
   }
 
+
+  const onMakerResolved = (choice: SpookboxMakerChoice) => {
+    if (choice === 'trade' && hasCharm && !spookboxOwned) {
+      spendKellerCharm()
+      markCharmTradedForSpookbox()
+      grantSpookbox()
+      setHasCharm(false)
+      setSpookboxOwned(true)
+      setSpookboxEquipped(true)
+      setStatusLine(`${SPOOKBOX.name} acquired. Equip and call a protector on the Archivist.`)
+    } else if (choice === 'leave') {
+      setStatusLine('The workbench ticks on without you.')
+    }
+  }
+
+  const closeMaker = () => {
+    setMakerOpen(false)
+  }
+
+  const openSpookboxCall = () => {
+    if (!spookboxOwned || !spookboxEquipped) {
+      setStatusLine('Equip the Spookbox first.')
+      return
+    }
+    if (activeKindRef.current !== 'secret') {
+      setStatusLine('The Spookbox only finds a protector mid-Archivist fight.')
+      return
+    }
+    setSpookboxCallOpen(true)
+  }
+
+  const onSpookboxCallSuccess = () => {
+    setSpookboxCallOpen(false)
+    archivistStunnedRef.current = true
+    setArchivistStunned(true)
+    setProtectorVfx(true)
+    setStunned(true) // brief player-side flash; entity held
+    // Knock Archivist back
+    if (appearAtRef.current != null) {
+      const now = performance.now()
+      const profile = tensionFor('secret')
+      const elapsed = now - appearAtRef.current
+      appearAtRef.current = now - Math.max(0, elapsed - 0.45 * profile.approachMs)
+    }
+    meleeEnteredAtRef.current = null
+    setStatusLine('Protector hold! The Pale Archivist is stunned — land the final seal.')
+    window.setTimeout(() => {
+      setProtectorVfx(false)
+      setStunned(false)
+    }, 1400)
+    audioRef.current.playHit()
+  }
+
   const retryAfterDeath = () => {
     deadRef.current = false
     setDead(false)
@@ -1625,6 +1767,9 @@ export default function App() {
     meleeEnteredAtRef.current = null
     lastHitAtRef.current = 0
     placedForRef.current = null
+    archivistStunnedRef.current = false
+    setArchivistStunned(false)
+    setSpookboxCallOpen(false)
     resetGhost()
     arSessionRef.current?.hideGhost()
     setStatusLine('Pulse returns. Hunt again.')
@@ -1725,6 +1870,7 @@ export default function App() {
     }
     // Return the lens — grant NG+ charm
     grantKellerCharm()
+    setHasCharm(true)
     setEpilogueRefused(false)
     setTradeMode(false)
     setEndCardOpen(true)
@@ -1804,12 +1950,15 @@ export default function App() {
   const isBoss = activeKind === 'boss'
   const isDemon = activeKind === 'demon'
   const isTrial = activeKind === 'trial'
+  const isSecret = activeKind === 'secret'
   const phases = capturePhasesFor(activeKind)
   const demonVisible =
     isDemon &&
     (ghostShouldShow || forcePlayground || playgroundArrived || sustainedPlayground)
   const trialVisible =
     isTrial && (ghostShouldShow || sustainedTrial || forceTrial)
+  const secretVisible =
+    isSecret && (ghostShouldShow || sustainedSecret || readForceSecretGhost())
 
   const modeLabel =
     arMode === 'checking'
@@ -1826,6 +1975,8 @@ export default function App() {
                 ? 'WARDEN'
                 : isTrial && trialVisible
                   ? 'TRIAL'
+                  : isSecret && secretVisible
+                    ? 'ARCHIVIST'
                   : arRunning
                     ? 'WEBXR ANCHORED'
                     : arMode === 'webxr'
@@ -1887,6 +2038,7 @@ export default function App() {
               {forceTrial ? ' · FORCE TRIAL' : ''}
               {clearCount > 0 ? ` · clears ${clearCount}` : ''}
               {secretUnlocked ? ' · SECRET' : ''}
+              {spookboxOwned ? ' · SPOOKBOX' : ''}
               {ngPlusActive ? ' · NG+' : ''}
               {postGame ? ' · POST-HUNT' : ''}{ngPlusActive ? ' · NG+' : ''}{trueGoodEnd ? ' · TRUE END' : ''}
             </li>
@@ -1938,7 +2090,9 @@ export default function App() {
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
             <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> ·{' '}
             <code>?forceSecretGhost=1</code> · <code>?forceNGPlus=1</code> ·{' '}
-            <code>?forceStranger=1</code> · long-press title for dusk.
+            <code>?forceStranger=1</code> · <code>?forceSpookboxMaker=1</code> ·{' '}
+            <code>?forceSpookbox=1</code> · <code>?forceArchivistStun=1</code> ·
+            long-press title for dusk.
           </p>
           {modelError && <p className="warn">{modelError}</p>}
         </div>
@@ -1948,7 +2102,7 @@ export default function App() {
 
   return (
     <div
-      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''} ${isTrial ? 'app-trial' : ''} ${cinematicLock ? 'app-cinematic' : ''} ${postGame ? 'app-postgame' : ''}`}
+      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''} ${isSecret ? 'app-secret' : ''} ${isTrial ? 'app-trial' : ''} ${cinematicLock ? 'app-cinematic' : ''} ${postGame ? 'app-postgame' : ''}`}
     >
       <canvas
         ref={xrCanvasRef}
@@ -1978,7 +2132,7 @@ export default function App() {
           videoRefAttach={camera.attach}
           videoReady={camera.ready}
           ghostVisible={
-            !cinematicLock && (ghostShouldShow || fleeing || demonVisible || trialVisible)
+            !cinematicLock && (ghostShouldShow || fleeing || demonVisible || trialVisible || secretVisible)
           }
           ghostTarget={activeKind ?? sustainedTarget ?? lastTargetRef.current}
           fleeing={fleeing}
@@ -1993,7 +2147,7 @@ export default function App() {
         />
       )}
 
-      {arRunning && !cinematicLock && (ghostShouldShow || demonVisible || trialVisible) && (
+      {arRunning && !cinematicLock && (ghostShouldShow || demonVisible || trialVisible || secretVisible) && (
         <div
           className={`ar-threat-flash ${isBoss ? 'boss-flash' : ''} ${isDemon ? 'demon-flash' : ''}`}
           style={{
@@ -2028,16 +2182,18 @@ export default function App() {
         modeLabel={modeLabel}
         detection={detection}
         sustained={sustainedTarget}
-        ghostVisible={ghostShouldShow || demonVisible || trialVisible}
+        ghostVisible={ghostShouldShow || demonVisible || trialVisible || secretVisible}
         anchored={anchored}
         modelReady={modelReady}
         loadingMsg={loadingMsg}
         captureDisabled={
           !dusk.allowed ||
-          !(ghostShouldShow || demonVisible || trialVisible) ||
-          (!sustainedTarget && !demonVisible && !trialVisible) ||
+          !(ghostShouldShow || demonVisible || trialVisible || secretVisible) ||
+          (!sustainedTarget && !demonVisible && !trialVisible && !secretVisible) ||
           dead ||
-          capturing
+          capturing ||
+          makerOpen ||
+          spookboxCallOpen
         }
         onCapture={capture}
         onOpenGallery={() => setGalleryOpen(true)}
@@ -2060,6 +2216,7 @@ export default function App() {
         isBoss={isBoss && (ghostShouldShow || false)}
         isDemon={demonVisible}
         isTrial={trialVisible}
+        isSecret={secretVisible}
         capturePhase={capturePhase}
         capturePhases={phases}
         uniqueSealed={uniqueSealed}
@@ -2102,13 +2259,35 @@ export default function App() {
         >
           Relics · {unlockedCollectibles.size}
         </button>
-        {equippedItem && (ghostShouldShow || demonVisible) && !itemSpentThisFight && (
+        {equippedItem && (ghostShouldShow || demonVisible || secretVisible) && !itemSpentThisFight && (
           <button
             type="button"
             className="btn use-tool-btn"
             onClick={useEquippedItem}
           >
             Use {getItemDef(equippedItem)?.name}
+          </button>
+        )}
+        {spookboxOwned && (
+          <button
+            type="button"
+            className={`btn use-tool-btn spookbox-equip-btn ${spookboxEquipped ? 'on' : ''}`}
+            onClick={() => setSpookboxEquipped((e) => !e)}
+          >
+            {spookboxEquipped ? 'Spookbox: READY' : 'Equip Spookbox'}
+          </button>
+        )}
+        {spookboxOwned &&
+          spookboxEquipped &&
+          secretVisible &&
+          !archivistStunned &&
+          capturePhase >= phases - 1 && (
+          <button
+            type="button"
+            className="btn use-tool-btn spookbox-call-btn"
+            onClick={openSpookboxCall}
+          >
+            Activate Spookbox
           </button>
         )}
       </div>
@@ -2183,6 +2362,20 @@ export default function App() {
           {collectibleToast}
         </div>
       )}
+
+      <SpookboxMaker
+        open={makerOpen}
+        hasCharm={hasCharm}
+        alreadyHasBox={spookboxOwned}
+        onResolved={onMakerResolved}
+        onClose={closeMaker}
+      />
+      <SpookboxCall
+        open={spookboxCallOpen}
+        onSuccess={onSpookboxCallSuccess}
+        onCancel={() => setSpookboxCallOpen(false)}
+      />
+      <ProtectorStunVfx active={protectorVfx} />
 
       <StrangerVignette clue={activeClue} onDismiss={dismissStranger} />
 

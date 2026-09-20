@@ -11,5 +11,6 @@ Drop PNGs here; the UI loads them automatically. If a file is missing, a labeled
 | `stranger-vow_thread.png` | Stranger: late guest (hush / ring) |
 | `stranger-empty_seat.png` | Stranger: caretaker (crepe / demon) |
 | `herr-keller.png` | Epilogue Van Helsing–type (Herr Keller) |
+| `spookbox-maker.png` | Spookbox Maker (Justin-coded workbench stranger) |
 
 Optional aliases also tried: `stranger-candle.png` → wet_threshold, `stranger-church.png` → grave_measure, etc.

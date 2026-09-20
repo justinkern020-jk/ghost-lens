@@ -18,7 +18,7 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 
 **Developer override**
 
-- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1`
+- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` · `?forceArchivistStun=1`
 - Boot screen button: **Force dusk (test)**
 - In-hunt: long-press the title area (~1s)
 
@@ -132,20 +132,29 @@ After the playground Demon is sealed:
 
 **Dev:** `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · combine with `?forceDusk=1&forcePlayground=1`.
 
-## New Game+ — charm, cipher, secret ghost
+## New Game+ — charm, cipher, secret ghost, Spookbox
 
-Persisted in **localStorage**: NG+ flag, Keller charm, clear count, secret unlock, kept demon polaroid, true-good-ending.
+Persisted in **localStorage**: NG+ flag, Keller charm, clear count, secret unlock, kept demon polaroid, true-good-ending, Spookbox, charm-traded flag.
 
 | Piece | Detail |
 |-------|--------|
-| **Keller's Silver Charm** | Earned by **Return**. On NG+ (`?forceNGPlus=1` / `?ngplus=1` or saved flag) you start with it — ghosts approach ~12% slower. |
+| **Keller's Silver Charm** | Earned by **Return**. On NG+ (`?forceNGPlus=1` / `?ngplus=1` or saved flag) you start with it — ghosts approach ~12% slower. Spent when traded for the Spookbox. |
 | **Polaroid cipher** | NG+ only: each main seal + trial polaroid gets a stamped letter. Together they spell **CRYPT**. |
-| **Secret ghost** | *The Pale Archivist* — NG+ only. Point the lens at a **crypt / mausoleum / ossuary**. Harder than the trial echo; unique lore. Capturing marks secret unlocked. |
+| **Secret ghost** | *The Pale Archivist* — NG+ only. Point the lens at a **crypt / mausoleum / ossuary**. **3-seal** fight; the **final seal is blocked** until you activate the **Spookbox** mid-fight, call a protector (ITC minigame), and stun the Archivist. Only way to land the finishing blow. Capturing marks secret unlocked. |
+| **Spookbox Maker** | Mysterious Justin-coded character. Separate UI + portrait `public/portraits/spookbox-maker.png`. Appears only at **dusk** while framing a **radio / toolbox / garage / workshop / electronics / workbench**. Offers a **Spookbox** for **Keller's Silver Charm**. Without the charm: cryptic refusal. |
+| **Spookbox** | Persisted in localStorage. Equip from the Favor strip; on the Archivist’s last seal, **Activate Spookbox** → Call protector → stun VFX → final Capture allowed. |
 | **True good ending** | Requires **clear count ≥ 2** and **secret unlocked**. On the next demon clear, hell-hands are **suppressed** — you **keep the demon polaroid** and can **trade it to Keller** to **cure his lycanthropy**. Peaceful epilogue; no werewolf. |
+
+### Spookbox Maker — time & place
+
+| | |
+|--|--|
+| **Time** | Same **dusk hunt window** (solar ± sunset, or local **17:30–21:00** fallback). Outside dusk he does not appear (unless forced). |
+| **Place** | CLIP on **radio**, **toolbox**, **garage**, **workshop**, **electronics**, **circuit board**, or **workbench** — hold steady ~1.2s. |
 
 **Cipher answer:** `C R Y P T` (tombstone→C, ring→R, doll→Y, lake→P, trial→T).
 
-**Dev:** `?forceNGPlus=1` · `?forceSecretGhost=1` · `?forceTrueEnd=1` (skips to trade/cure scene).
+**Dev:** `?forceNGPlus=1` · `?forceSecretGhost=1` · `?forceTrueEnd=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` (grants box) · `?forceArchivistStun=1` (skips protector stun gate).
 
 ## Ambient object scans
 
@@ -162,6 +171,7 @@ Undertaker shop, mysterious strangers, and Herr Keller are **separate UI screens
 | `undertaker.png` | Shop |
 | `stranger-{clueId}.png` | Stranger vignettes |
 | `herr-keller.png` | Epilogue |
+| `spookbox-maker.png` | Spookbox Maker meet |
 
 Missing files show a labeled silhouette placeholder with the expected path. Ghosts / demon / hell-hands stay in the AR/camera layer.
 
@@ -199,8 +209,8 @@ npm run preview -- --host
 
 ## Privacy
 
-Camera frames classified **on device**. Polaroids, Favor, owned tools, clue/voice flags, NG+ progress, and ambient scan history persist in **localStorage** only. Geolocation (optional) only for solar dusk.
+Camera frames classified **on device**. Polaroids, Favor, owned tools, clue/voice flags, NG+ progress, Spookbox / charm trade flags, and ambient scan history persist in **localStorage** only. Geolocation (optional) only for solar dusk.
 
-## Not Spookbox
+## Spookbox (in-game) vs Spookbox (project)
 
-Separate project. Do not confuse with Spookbox.
+The **Spookbox** here is an in-game ITC item from the Maker meet — not the separate Spookbox app/project. Same name on purpose; different scope.
