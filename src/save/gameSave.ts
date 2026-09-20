@@ -38,6 +38,8 @@ export const LEGACY_KEYS = {
   firstCatch: 'ghost-lens-first-catch-v1',
   fieldSeals: 'ghost-lens-field-seals-v1',
   equipped: 'ghost-lens-equipped-item-v1',
+  trueGoodEndingCount: 'ghost-lens-true-good-ending-count-v1',
+  smileEndingSeen: 'ghost-lens-smile-ending-seen-v1',
 } as const
 
 export interface GhostLensSave {
@@ -51,6 +53,10 @@ export interface GhostLensSave {
   clearCount: number
   keptDemonPolaroid: boolean
   trueGoodEnding: boolean
+  /** Times the cure-Keller / trade-demon path has been completed. */
+  trueGoodEndingCount: number
+  /** Bazaar Smile meta epilogue has played (second true-good). */
+  smileEndingSeen: boolean
   kellerCharm: boolean
   ngplus: boolean
   secretUnlocked: boolean
@@ -87,6 +93,8 @@ export function emptySave(): GhostLensSave {
     clearCount: 0,
     keptDemonPolaroid: false,
     trueGoodEnding: false,
+    trueGoodEndingCount: 0,
+    smileEndingSeen: false,
     kellerCharm: false,
     ngplus: false,
     secretUnlocked: false,
@@ -195,6 +203,12 @@ function mergeLegacyOnto(s: GhostLensSave): GhostLensSave {
 
   if (lsFlag(LEGACY_KEYS.keptDemon)) next.keptDemonPolaroid = true
   if (lsFlag(LEGACY_KEYS.trueEnd)) next.trueGoodEnding = true
+  const legacyTrueCount = Number(lsGet(LEGACY_KEYS.trueGoodEndingCount) ?? '')
+  if (Number.isFinite(legacyTrueCount) && legacyTrueCount > next.trueGoodEndingCount) {
+    next.trueGoodEndingCount = Math.floor(legacyTrueCount)
+  }
+  if (next.trueGoodEnding && next.trueGoodEndingCount < 1) next.trueGoodEndingCount = 1
+  if (lsFlag(LEGACY_KEYS.smileEndingSeen)) next.smileEndingSeen = true
   if (lsFlag(LEGACY_KEYS.kellerCharm)) next.kellerCharm = true
   if (lsFlag(LEGACY_KEYS.ngplus)) next.ngplus = true
   if (lsFlag(LEGACY_KEYS.secretUnlocked)) next.secretUnlocked = true
@@ -243,6 +257,23 @@ function readSaveRaw(): GhostLensSave | null {
     } else {
       merged.introSeen = Boolean(legacy.introSeen)
     }
+    // Pre-count saves: one prior true-good counts as 1
+    if (!('trueGoodEndingCount' in legacy)) {
+      merged.trueGoodEndingCount = merged.trueGoodEnding ? 1 : 0
+    } else {
+      merged.trueGoodEndingCount = Math.max(
+        0,
+        Math.floor(Number(legacy.trueGoodEndingCount) || 0),
+      )
+      if (merged.trueGoodEnding && merged.trueGoodEndingCount < 1) {
+        merged.trueGoodEndingCount = 1
+      }
+    }
+    if (!('smileEndingSeen' in legacy)) {
+      merged.smileEndingSeen = false
+    } else {
+      merged.smileEndingSeen = Boolean(legacy.smileEndingSeen)
+    }
     return merged
   } catch {
     return null
@@ -280,6 +311,8 @@ function mirrorLegacy(s: GhostLensSave): void {
   }
   flag(LEGACY_KEYS.keptDemon, s.keptDemonPolaroid)
   flag(LEGACY_KEYS.trueEnd, s.trueGoodEnding)
+  lsSet(LEGACY_KEYS.trueGoodEndingCount, String(s.trueGoodEndingCount ?? 0))
+  flag(LEGACY_KEYS.smileEndingSeen, s.smileEndingSeen)
   flag(LEGACY_KEYS.kellerCharm, s.kellerCharm)
   flag(LEGACY_KEYS.ngplus, s.ngplus)
   flag(LEGACY_KEYS.secretUnlocked, s.secretUnlocked)
@@ -393,6 +426,16 @@ export function importSaveJson(json: string): { ok: true; save: GhostLensSave } 
       ),
       clearCount: Math.max(0, Math.floor(Number(parsed.clearCount) || 0)),
       fieldSealCount: Math.max(0, Math.floor(Number(parsed.fieldSealCount) || 0)),
+      trueGoodEndingCount: Math.max(
+        0,
+        Math.floor(
+          Number(
+            parsed.trueGoodEndingCount ??
+              (parsed.trueGoodEnding ? 1 : 0),
+          ) || 0,
+        ),
+      ),
+      smileEndingSeen: Boolean(parsed.smileEndingSeen),
       introSeen:
         typeof parsed.introSeen === 'boolean'
           ? parsed.introSeen

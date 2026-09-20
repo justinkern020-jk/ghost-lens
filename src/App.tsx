@@ -80,6 +80,7 @@ import {
 import { WerewolfAttack } from './components/WerewolfAttack'
 import { AmbientScanCard } from './components/AmbientScanCard'
 import { BazaarIntro, type BazaarIntroChoice } from './components/BazaarIntro'
+import { BazaarSmileEpilogue } from './components/BazaarSmileEpilogue'
 import {
   grantKellerCharm,
   hasKellerCharm,
@@ -120,9 +121,12 @@ import {
   incrementClearCount,
   isTrueEndEligible,
   loadClearCount,
+  markSmileEndingSeen,
   markTrueGoodEnding,
+  readForceSmileEnd,
   readForceTrueEnd,
   setKeptDemonPolaroid,
+  shouldPlaySmileEpilogue,
 } from './ngplus/progress'
 import {
   loadHeardVoiceHints,
@@ -287,6 +291,7 @@ export default function App() {
   const [finalePolaroidUrl, setFinalePolaroidUrl] = useState<string | null>(null)
   const [epilogueOpen, setEpilogueOpen] = useState(false)
   const [endCardOpen, setEndCardOpen] = useState(false)
+  const [smileEpilogueOpen, setSmileEpilogueOpen] = useState(false)
   const [epilogueRefused, setEpilogueRefused] = useState(false)
   const [postGame, setPostGame] = useState(false)
   const [cinematicLock, setCinematicLock] = useState(false)
@@ -633,7 +638,7 @@ export default function App() {
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
     if (!forceTrial) return
-    if (finaleActive || epilogueOpen || endCardOpen || cinematicLock) return
+    if (finaleActive || epilogueOpen || endCardOpen || smileEpilogueOpen || cinematicLock) return
     if (ghostShouldShow && activeKindRef.current === 'trial') return
     if (playgroundUnlocked && !demonDefeated && (forcePlayground || playgroundArrived)) return
     forceTrialManifest()
@@ -669,6 +674,7 @@ export default function App() {
     finaleActive,
     epilogueOpen,
     endCardOpen,
+    smileEpilogueOpen,
     cinematicLock,
     playgroundUnlocked,
     demonDefeated,
@@ -699,7 +705,7 @@ export default function App() {
 
   // Dev: skip to Keller epilogue
   useEffect(() => {
-    if (!started || epilogueOpen || endCardOpen) return
+    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen) return
     if (!readForceEpilogue()) return
     try {
       const url = new URL(window.location.href)
@@ -710,7 +716,7 @@ export default function App() {
     }
     setCinematicLock(true)
     setEpilogueOpen(true)
-  }, [started, epilogueOpen, endCardOpen])
+  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen])
 
   // Dev: force werewolf refuse path
   useEffect(() => {
@@ -733,7 +739,7 @@ export default function App() {
 
   // Dev: force true-end trade scene
   useEffect(() => {
-    if (!started || epilogueOpen || endCardOpen) return
+    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen) return
     if (!readForceTrueEnd()) return
     try {
       const url = new URL(window.location.href)
@@ -748,7 +754,23 @@ export default function App() {
     setCinematicLock(true)
     setEpilogueOpen(true)
     setStatusLine('Force true end — trade the demon polaroid.')
-  }, [started, epilogueOpen, endCardOpen])
+  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen])
+
+  // Dev: force Bazaar Smile meta epilogue
+  useEffect(() => {
+    if (!started || smileEpilogueOpen || endCardOpen || epilogueOpen) return
+    if (!readForceSmileEnd()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceSmileEnd')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setCinematicLock(true)
+    setSmileEpilogueOpen(true)
+    setStatusLine('Force Smile ending — bazaar epilogue.')
+  }, [started, smileEpilogueOpen, endCardOpen, epilogueOpen])
 
   // Manifest / flee
   useEffect(() => {
@@ -2037,11 +2059,19 @@ export default function App() {
       setTrueGoodEnd(true)
       setTradeMode(false)
       setEpilogueRefused(false)
-      setEndCardOpen(true)
       setPostGame(true)
-      setStatusLine(
-        'The Empty Seat changes hands. The moon lets go of Herr Keller.',
-      )
+      if (shouldPlaySmileEpilogue()) {
+        setCinematicLock(true)
+        setSmileEpilogueOpen(true)
+        setStatusLine(
+          'The Empty Seat changes hands. Back in the bazaar, the proprietor has one courtesy left.',
+        )
+      } else {
+        setEndCardOpen(true)
+        setStatusLine(
+          'The Empty Seat changes hands. The moon lets go of Herr Keller.',
+        )
+      }
       return
     }
     // Return the lens — grant NG+ charm
@@ -2067,6 +2097,14 @@ export default function App() {
           : 'Post-hunt quiet. The lens is gone. The photographs stay.',
     )
   }, [epilogueRefused, trueGoodEnd])
+
+  const onSmileEpilogueComplete = useCallback(() => {
+    markSmileEndingSeen()
+    setSmileEpilogueOpen(false)
+    setCinematicLock(false)
+    setPostGame(true)
+    setStatusLine('The tale ends. The listener is filed under glass.')
+  }, [])
 
   const onWerewolfComplete = useCallback(() => {
     setWerewolfActive(false)
@@ -2139,7 +2177,9 @@ export default function App() {
   const modeLabel =
     arMode === 'checking'
       ? 'PROBING…'
-      : cinematicLock || finaleActive
+      : smileEpilogueOpen
+        ? 'BAZAAR · SMILE'
+        : cinematicLock || finaleActive
         ? 'FINALE'
         : epilogueOpen
           ? 'EPILOGUE'
@@ -2285,7 +2325,7 @@ export default function App() {
             <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
             <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
-            <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> ·{' '}
+            <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> · <code>?forceSmileEnd=1</code> ·{' '}
             <code>?forceSecretGhost=1</code> · <code>?forceNGPlus=1</code> ·{' '}
             <code>?forceStranger=1</code> · <code>?forceSpookboxMaker=1</code> ·{' '}
             <code>?forceSpookbox=1</code> · <code>?forceArchivistStun=1</code> ·
@@ -2367,10 +2407,14 @@ export default function App() {
         onResolved={onEpilogueResolved}
       />
       <EndTitleCard
-        open={endCardOpen}
+        open={endCardOpen && !smileEpilogueOpen}
         refused={epilogueRefused}
         trueGood={trueGoodEnd}
         onDismiss={dismissEndCard}
+      />
+      <BazaarSmileEpilogue
+        open={smileEpilogueOpen}
+        onComplete={onSmileEpilogueComplete}
       />
       <WerewolfAttack active={werewolfActive} onComplete={onWerewolfComplete} />
 

@@ -3002,6 +3002,43 @@ html, body, #root {
   color: #bbb;
 }
 
+
+
+/* —— Bazaar Smile meta epilogue (flash / shutter / final card) —— */
+.bazaar-smile-word {
+  letter-spacing: 0.28em;
+  font-size: 22px !important;
+  margin: 28px 0 !important;
+}
+.bazaar-smile-end-title {
+  font: 600 28px/1.15 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: #f2f2f2;
+  margin: 12px 0 8px;
+}
+.bazaar-shutter-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: #f5f0e6;
+  animation: bazaar-shutter-white 0.9s ease-out forwards;
+}
+.bazaar-smile.bazaar-smile-flashing .bazaar-card {
+  filter: grayscale(1) contrast(1.2) brightness(1.35);
+}
+@keyframes bazaar-shutter-white {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  35% { opacity: 0.85; }
+  70% { opacity: 0.2; }
+  100% { opacity: 0; }
+}
+.bazaar-smile .bazaar-subtitle {
+  min-height: 1.3em;
+}
+
 /* Save toast + panel */
 .save-toast {
   position: absolute;

@@ -4,6 +4,8 @@
  * secretUnlocked: Pale Archivist captured.
  * keptDemonPolaroid: eligible clear skipped hell-hands; photo still held.
  * trueGoodEnding: traded demon photo to cure Keller’s lycanthropy.
+ * trueGoodEndingCount: times that cure/trade path has completed.
+ * smileEndingSeen: Bazaar Smile meta epilogue has played.
  */
 
 import { getSave, patchSave } from '../save/gameSave'
@@ -30,11 +32,41 @@ export function hasTrueGoodEnding(): boolean {
   return getSave().trueGoodEnding
 }
 
-export function markTrueGoodEnding(): void {
+export function getTrueGoodEndingCount(): number {
+  return getSave().trueGoodEndingCount ?? 0
+}
+
+/**
+ * Record a cure-Keller / trade-demon clear.
+ * Increments trueGoodEndingCount; keeps trueGoodEnding true.
+ * @returns the new count after this mark
+ */
+export function markTrueGoodEnding(): number {
+  const prev = getSave().trueGoodEndingCount ?? 0
+  const next = prev + 1
   patchSave(
-    { trueGoodEnding: true, keptDemonPolaroid: false },
+    {
+      trueGoodEnding: true,
+      trueGoodEndingCount: next,
+      keptDemonPolaroid: false,
+    },
     { toast: 'True ending sealed into the ledger.' },
   )
+  return next
+}
+
+export function hasSmileEndingSeen(): boolean {
+  return Boolean(getSave().smileEndingSeen)
+}
+
+export function markSmileEndingSeen(): void {
+  patchSave({ smileEndingSeen: true })
+}
+
+/** Second true-good (and not yet seen) → Smile bazaar epilogue. */
+export function shouldPlaySmileEpilogue(): boolean {
+  const s = getSave()
+  return (s.trueGoodEndingCount ?? 0) >= 2 && !s.smileEndingSeen
 }
 
 /** Eligible for kept-demon / trade path on the next demon clear. */
@@ -45,6 +77,14 @@ export function isTrueEndEligible(secretUnlocked: boolean): boolean {
 export function readForceTrueEnd(): boolean {
   try {
     return new URLSearchParams(window.location.search).get('forceTrueEnd') === '1'
+  } catch {
+    return false
+  }
+}
+
+export function readForceSmileEnd(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('forceSmileEnd') === '1'
   } catch {
     return false
   }
