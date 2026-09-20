@@ -1744,6 +1744,7 @@ html, body, #root {
 .undertaker-item.owned {
   border-color: #3a4830;
 }
+
 .ut-item-head {
   display: flex;
   justify-content: space-between;
@@ -2659,17 +2660,31 @@ html, body, #root {
   pointer-events: auto;
 }
 .ambient-scan-panel {
-  width: min(420px, 94vw);
+  width: min(360px, 94vw);
+  max-height: min(92vh, 720px);
+  overflow: auto;
   background: linear-gradient(180deg, #1a1612, #0c0a08);
   border: 1px solid #5a4e3e;
-  padding: 18px 16px 16px;
+  padding: 14px 14px 16px;
   box-shadow: 0 16px 48px rgba(0,0,0,0.55);
 }
 .ambient-scan-kicker {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font: 10px/1 "Courier New", monospace;
   letter-spacing: 0.18em;
   color: #8a7a68;
+}
+.ambient-scan-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid #3a3428;
+  background: #0a0908;
+  margin: 0 0 12px;
+}
+.ambient-scan-body {
+  margin: 0 0 4px;
 }
 .ambient-scan-title {
   margin: 0 0 10px;

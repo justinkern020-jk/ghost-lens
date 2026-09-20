@@ -9,6 +9,8 @@ export type AmbientClueKind = 'stranger' | 'relic' | 'cipher' | 'shop' | 'genera
 
 export interface AmbientScanEntry {
   id: string
+  /** Basename under /ambient-cards/{imageKey}.png (kebab-case of id). */
+  imageKey: string
   /** CLIP label(s) that can trigger this reading. */
   labels: readonly string[]
   title: string
@@ -24,6 +26,7 @@ export interface AmbientScanEntry {
 export const AMBIENT_SCANS: AmbientScanEntry[] = [
   {
     id: 'empty_photo_frame',
+    imageKey: 'empty-photo-frame',
     labels: ['picture frame', 'empty frame', 'photo frame'],
     title: 'Empty Frame',
     reading:
@@ -31,6 +34,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'worn_gloves',
+    imageKey: 'worn-gloves',
     labels: ['gloves', 'leather gloves', 'work gloves'],
     title: 'Worn Gloves',
     reading:
@@ -42,6 +46,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'cracked_teacup',
+    imageKey: 'cracked-teacup',
     labels: ['teacup', 'tea cup', 'cup'],
     title: 'Cracked Teacup',
     reading:
@@ -49,6 +54,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'pocket_watch',
+    imageKey: 'pocket-watch',
     labels: ['pocket watch', 'watch', 'stopwatch'],
     title: 'Stopped Watch',
     reading:
@@ -60,6 +66,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'wilted_bouquet',
+    imageKey: 'wilted-bouquet',
     labels: ['wilted bouquet', 'dead flowers', 'dried flowers'],
     title: 'Wilted Bouquet',
     reading:
@@ -67,6 +74,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'child_drawing',
+    imageKey: 'child-drawing',
     labels: ['drawing', 'crayon drawing', 'child drawing'],
     title: 'Child’s Drawing',
     reading:
@@ -78,6 +86,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'rusty_key',
+    imageKey: 'rusty-key',
     labels: ['key', 'old key', 'skeleton key'],
     title: 'Rusty Key',
     reading:
@@ -85,6 +94,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'fogged_mirror',
+    imageKey: 'fogged-mirror',
     labels: ['hand mirror', 'compact mirror', 'vanity mirror', 'mirror'],
     title: 'Fogged Mirror',
     reading:
@@ -92,6 +102,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'lonely_shoe',
+    imageKey: 'lonely-shoe',
     labels: ['shoe', 'boot', 'sneaker', 'shoes'],
     title: 'Single Shoe',
     reading:
@@ -99,6 +110,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'unopened_letter',
+    imageKey: 'unopened-letter',
     labels: ['envelope', 'letter', 'mail'],
     title: 'Unopened Letter',
     reading:
@@ -110,6 +122,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'rain_umbrella',
+    imageKey: 'rain-umbrella',
     labels: ['umbrella', 'closed umbrella'],
     title: 'Furled Umbrella',
     reading:
@@ -117,6 +130,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'church_hymnal',
+    imageKey: 'church-hymnal',
     labels: ['hymnal', 'prayer book', 'songbook'],
     title: 'Hymnal',
     reading:
@@ -128,6 +142,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'broken_swing_chain',
+    imageKey: 'broken-swing-chain',
     labels: ['chain', 'metal chain'],
     title: 'Broken Chain',
     reading:
@@ -135,6 +150,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'salt_shaker',
+    imageKey: 'salt-shaker',
     labels: ['salt shaker', 'salt cellar'],
     title: 'Salt Shaker',
     reading:
@@ -146,6 +162,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'baby_rattle',
+    imageKey: 'baby-rattle',
     labels: ['rattle', 'baby rattle'],
     title: 'Silent Rattle',
     reading:
@@ -153,6 +170,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'train_ticket',
+    imageKey: 'train-ticket',
     labels: ['ticket', 'train ticket', 'bus ticket'],
     title: 'Expired Ticket',
     reading:
@@ -160,6 +178,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'spectacles',
+    imageKey: 'spectacles',
     labels: ['glasses', 'eyeglasses', 'spectacles'],
     title: 'Folded Spectacles',
     reading:
@@ -167,6 +186,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'candle_stub',
+    imageKey: 'candle-stub',
     labels: ['candle', 'candle stub', 'wax candle'],
     title: 'Candle Stub',
     reading:
@@ -174,6 +194,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'wedding_ring',
+    imageKey: 'wedding-ring',
     labels: ['wedding ring', 'ring', 'gold ring', 'engagement ring'],
     title: 'Wedding Band',
     reading:
@@ -185,6 +206,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'playground_swing',
+    imageKey: 'playground-swing',
     labels: ['swing', 'swing set', 'playground swing'],
     title: 'Empty Swing',
     reading:
@@ -192,6 +214,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'porcelain_doll',
+    imageKey: 'porcelain-doll',
     labels: ['doll', 'porcelain doll', 'toy doll'],
     title: 'Porcelain Doll',
     reading:
@@ -203,6 +226,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'weathered_tombstone',
+    imageKey: 'weathered-tombstone',
     labels: ['tombstone', 'gravestone', 'headstone', 'grave'],
     title: 'Weathered Stone',
     reading:
@@ -214,6 +238,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'still_water',
+    imageKey: 'still-water',
     labels: ['water', 'lake', 'pond', 'puddle'],
     title: 'Still Water',
     reading:
@@ -221,6 +246,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'family_bible',
+    imageKey: 'family-bible',
     labels: ['bible', 'holy bible', 'book of scripture'],
     title: 'Family Bible',
     reading:
@@ -228,6 +254,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'wall_clock',
+    imageKey: 'wall-clock',
     labels: ['clock', 'wall clock', 'alarm clock'],
     title: 'Wall Clock',
     reading:
@@ -235,6 +262,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'wooden_cross',
+    imageKey: 'wooden-cross',
     labels: ['cross', 'wooden cross', 'crucifix'],
     title: 'Wooden Cross',
     reading:
@@ -242,6 +270,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'stone_church',
+    imageKey: 'stone-church',
     labels: ['church', 'chapel', 'cathedral'],
     title: 'Stone Church',
     reading:
@@ -249,6 +278,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'empty_crib',
+    imageKey: 'empty-crib',
     labels: ['crib', 'baby crib', 'cradle'],
     title: 'Empty Crib',
     reading:
@@ -256,6 +286,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'music_box',
+    imageKey: 'music-box',
     labels: ['music box', 'jewellery music box'],
     title: 'Music Box',
     reading:
@@ -267,6 +298,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'faded_photograph',
+    imageKey: 'faded-photograph',
     labels: ['photograph', 'photo', 'old photo', 'polaroid'],
     title: 'Faded Photograph',
     reading:
@@ -278,6 +310,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'packed_suitcase',
+    imageKey: 'packed-suitcase',
     labels: ['suitcase', 'luggage', 'travel bag'],
     title: 'Packed Suitcase',
     reading:
@@ -285,6 +318,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'forgotten_bicycle',
+    imageKey: 'forgotten-bicycle',
     labels: ['bicycle', 'bike', 'bicycle wheel'],
     title: 'Forgotten Bicycle',
     reading:
@@ -292,6 +326,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'deflated_ball',
+    imageKey: 'deflated-ball',
     labels: ['ball', 'soccer ball', 'basketball', 'beach ball'],
     title: 'Deflated Ball',
     reading:
@@ -299,6 +334,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'frayed_backpack',
+    imageKey: 'frayed-backpack',
     labels: ['backpack', 'rucksack', 'school bag'],
     title: 'Frayed Backpack',
     reading:
@@ -310,6 +346,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'bruised_banana',
+    imageKey: 'bruised-banana',
     labels: ['banana', 'bunch of bananas'],
     title: 'Bruised Banana',
     reading:
@@ -317,6 +354,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'park_bench',
+    imageKey: 'park-bench',
     labels: ['bench', 'park bench', 'wooden bench'],
     title: 'Park Bench',
     reading:
@@ -328,6 +366,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'birdhouse',
+    imageKey: 'birdhouse',
     labels: ['birdhouse', 'bird house', 'nesting box'],
     title: 'Birdhouse',
     reading:
@@ -335,6 +374,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'folded_blanket',
+    imageKey: 'folded-blanket',
     labels: ['blanket', 'throw blanket', 'quilt'],
     title: 'Folded Blanket',
     reading:
@@ -342,6 +382,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'dog_eared_book',
+    imageKey: 'dog-eared-book',
     labels: ['book', 'hardcover book', 'paperback book', 'novel'],
     title: 'Dog-Eared Book',
     reading:
@@ -353,6 +394,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'empty_bottle',
+    imageKey: 'empty-bottle',
     labels: ['bottle', 'glass bottle', 'water bottle', 'wine bottle'],
     title: 'Empty Bottle',
     reading:
@@ -360,6 +402,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'loose_brick',
+    imageKey: 'loose-brick',
     labels: ['brick', 'red brick', 'clay brick'],
     title: 'Loose Brick',
     reading:
@@ -367,6 +410,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'worn_broom',
+    imageKey: 'worn-broom',
     labels: ['broom', 'push broom', 'straw broom'],
     title: 'Worn Broom',
     reading:
@@ -374,6 +418,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'galvanized_bucket',
+    imageKey: 'galvanized-bucket',
     labels: ['bucket', 'pail', 'metal bucket'],
     title: 'Galvanized Bucket',
     reading:
@@ -381,6 +426,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'brass_doorknob',
+    imageKey: 'brass-doorknob',
     labels: ['doorknob', 'door knob', 'door handle'],
     title: 'Brass Doorknob',
     reading:
@@ -392,6 +438,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'dripping_faucet',
+    imageKey: 'dripping-faucet',
     labels: ['faucet', 'tap', 'water faucet', 'sink faucet'],
     title: 'Dripping Faucet',
     reading:
@@ -399,6 +446,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'weathered_fence',
+    imageKey: 'weathered-fence',
     labels: ['fence', 'wooden fence', 'picket fence', 'chain link fence'],
     title: 'Weathered Fence',
     reading:
@@ -406,6 +454,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'fire_hydrant',
+    imageKey: 'fire-hydrant',
     labels: ['fire hydrant', 'hydrant'],
     title: 'Fire Hydrant',
     reading:
@@ -417,6 +466,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'dead_flashlight',
+    imageKey: 'dead-flashlight',
     labels: ['flashlight', 'torch', 'electric torch'],
     title: 'Dead Flashlight',
     reading:
@@ -428,6 +478,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'bent_fork',
+    imageKey: 'bent-fork',
     labels: ['fork', 'dinner fork', 'metal fork'],
     title: 'Bent Fork',
     reading:
@@ -435,6 +486,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'humming_fridge',
+    imageKey: 'humming-fridge',
     labels: ['fridge', 'refrigerator', 'fridge door'],
     title: 'Humming Fridge',
     reading:
@@ -442,6 +494,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'untuned_guitar',
+    imageKey: 'untuned-guitar',
     labels: ['guitar', 'acoustic guitar', 'electric guitar'],
     title: 'Untuned Guitar',
     reading:
@@ -453,6 +506,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'claw_hammer',
+    imageKey: 'claw-hammer',
     labels: ['hammer', 'claw hammer'],
     title: 'Claw Hammer',
     reading:
@@ -460,6 +514,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'crushed_hat',
+    imageKey: 'crushed-hat',
     labels: ['hat', 'cap', 'baseball cap', 'beanie'],
     title: 'Crushed Hat',
     reading:
@@ -467,6 +522,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'tangled_headphones',
+    imageKey: 'tangled-headphones',
     labels: ['headphones', 'earbuds', 'earphones'],
     title: 'Tangled Headphones',
     reading:
@@ -474,6 +530,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'closed_laptop',
+    imageKey: 'closed-laptop',
     labels: ['laptop', 'laptop computer', 'notebook computer'],
     title: 'Closed Laptop',
     reading:
@@ -485,6 +542,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'bedside_lamp',
+    imageKey: 'bedside-lamp',
     labels: ['lamp', 'table lamp', 'desk lamp', 'bedside lamp'],
     title: 'Bedside Lamp',
     reading:
@@ -492,6 +550,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'rusted_mailbox',
+    imageKey: 'rusted-mailbox',
     labels: ['mailbox', 'mail box', 'letterbox', 'post box'],
     title: 'Rusted Mailbox',
     reading:
@@ -503,6 +562,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'stained_mug',
+    imageKey: 'stained-mug',
     labels: ['mug', 'coffee mug', 'tea mug'],
     title: 'Stained Mug',
     reading:
@@ -510,6 +570,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'yellowed_newspaper',
+    imageKey: 'yellowed-newspaper',
     labels: ['newspaper', 'folded newspaper', 'newsprint'],
     title: 'Yellowed Newspaper',
     reading:
@@ -517,6 +578,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'paint_can',
+    imageKey: 'paint-can',
     labels: ['paint can', 'paint tin', 'can of paint'],
     title: 'Paint Can',
     reading:
@@ -524,6 +586,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'traffic_cone',
+    imageKey: 'traffic-cone',
     labels: ['traffic cone', 'orange cone', 'safety cone'],
     title: 'Traffic Cone',
     reading:
@@ -531,6 +594,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'overturned_trash_can',
+    imageKey: 'overturned-trash-can',
     labels: ['trash can', 'garbage can', 'rubbish bin', 'waste bin'],
     title: 'Overturned Bin',
     reading:
@@ -542,6 +606,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'tree_stump',
+    imageKey: 'tree-stump',
     labels: ['tree stump', 'stump', 'cut stump'],
     title: 'Tree Stump',
     reading:
@@ -553,6 +618,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
   },
   {
     id: 'cracked_vase',
+    imageKey: 'cracked-vase',
     labels: ['vase', 'flower vase', 'ceramic vase'],
     title: 'Cracked Vase',
     reading:
