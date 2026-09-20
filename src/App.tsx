@@ -2103,7 +2103,7 @@ export default function App() {
     setSmileEpilogueOpen(false)
     setCinematicLock(false)
     setPostGame(true)
-    setStatusLine('The tale ends. The listener is filed under glass.')
+    setStatusLine('The tale ends. You who played are filed under glass.')
   }, [])
 
   const onWerewolfComplete = useCallback(() => {

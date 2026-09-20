@@ -181,7 +181,9 @@ export function BazaarIntro({ open, onComplete }: Props) {
               in time. That is a story for later.
             </p>
             <p className="bazaar-line dim">
-              Tonight, the inheritance sits where you can reach it.
+              Tonight, that glass rests where you found it — in the case.
+              The heir belongs to the telling. You who walked in are only
+              here to hear it.
             </p>
             <button
               type="button"

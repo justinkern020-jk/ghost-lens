@@ -18,9 +18,9 @@ type Step =
 
 /**
  * Meta ending after the second true-good (cure Keller) clear of the framed tale.
- * Frame story: the player is a bazaar customer / listener — not the heir who hunts.
- * The playable hunt was the proprietor's story; the sting captures the audience.
- * Same visual language as BazaarIntro — Serling host, measured irony, final sting.
+ * Frame: the human holding the phone walked into the bazaar as a customer.
+ * The heir / Keller / hunt was a story the proprietor told that player — not their life.
+ * The sting photographs the player; the tale was bait. Serling cadence throughout.
  */
 export function BazaarSmileEpilogue({ open, onComplete }: Props) {
   const [step, setStep] = useState<Step>('return')
@@ -49,7 +49,7 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
       <div className="bazaar-card">
         <p className="bazaar-kicker">KERN&apos;S BIZARRE BAZAAR</p>
         <p className="bazaar-subtitle">
-          {step === 'card' ? 'A closing · for the listener' : 'An epilogue · after the tale'}
+          {step === 'card' ? 'A closing · for the one who played' : 'An epilogue · after the tale'}
         </p>
 
         {step !== 'card' && (
@@ -70,8 +70,9 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
               polite shops refuse to name. Dust. Glass. A bell that clears its throat.
             </p>
             <p className="bazaar-line dim">
-              You are still here — a customer, a listener — exactly as you were when
-              the proprietor first noticed your eye on the display case.
+              You who walked into Kern&apos;s Bizarre Bazaar — you, holding the glass,
+              the phone, the evening — are still here. A customer. Exactly as you were
+              when the proprietor first noticed your eye on the display case.
             </p>
             <button
               type="button"
@@ -92,7 +93,7 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
             </p>
             <p className="bazaar-line dim">
               The heir, the hungers, Herr Keller and his kinder moon — that was
-              their story. Yours, I think, ought to be going.
+              a story I told you. Their story. Yours, I think, ought to be going.
             </p>
             <button
               type="button"
@@ -133,7 +134,7 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
             </p>
             <p className="bazaar-line emphasis bazaar-smile-word">Smile.</p>
             <p className="bazaar-line dim">
-              Soft. Almost kind. The sort of instruction one gives a listener before
+              Soft. Almost kind. The sort of instruction one gives a customer before
               the portrait — or a specimen before the plate.
             </p>
             <button
@@ -150,7 +151,7 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
           <>
             <p className="bazaar-line dim" aria-live="polite">
               A shutter. White. The Ghost Lens answers — aimed not at the heir of
-              the tale, but at the one who stayed to hear it.
+              the tale, but at you who stayed to hear it. At the one holding the glass.
             </p>
           </>
         )}
@@ -159,19 +160,20 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
           <>
             <p className="bazaar-line">
               Consider, if you will, a shop that sells stories the way other shops
-              sell salt. The heir who cured the wolf — twice — was never standing
-              where you stand. That was theater. Bait. A frame for an audience.
+              sell salt. The heir who cured the wolf — twice — never stood where you
+              stand. That was theater. Bait. A frame told to the one who walked in.
             </p>
             <p className="bazaar-line dim">
               The hungers in the tale were real enough. So was the glass. What the
               proprietor needed was not another hunter — only someone patient enough
-              to listen until the shutter found them.
+              to play until the shutter found them.
             </p>
             <p className="bazaar-line emphasis">
-              You — the visitor, the listener — were a ghost all along.
+              You who played — you, the customer behind the phone — were a ghost all
+              along.
             </p>
             <p className="bazaar-line dim serling-signoff">
-              — the tale was bait; the lens kept the audience.
+              — the tale was bait; the lens kept the one who played.
             </p>
             <button
               type="button"
@@ -193,9 +195,8 @@ export function BazaarSmileEpilogue({ open, onComplete }: Props) {
               SMILE
             </p>
             <p className="bazaar-line dim" style={{ textAlign: 'center', marginTop: 12 }}>
-              The proprietor puts the listener&apos;s photograph away. The bell does
-              not ring. Somewhere a crypt files a customer under glass — and under
-              courtesy.
+              The proprietor puts your photograph away. The bell does not ring.
+              Somewhere a crypt files a customer under glass — and under courtesy.
             </p>
             <button
               type="button"
