@@ -1,9 +1,11 @@
-/** Favor currency + owned occult tools — persisted in localStorage.
+/** Insight currency + owned occult tools — persisted via central save blob.
+ *  (Formerly labeled Favor — migrated on load.)
  *  Items are NOT universal: each mainly works vs one haunt. Matchups are
  *  never spelled out in the shop — mysterious strangers whisper the keys.
  */
 
 import type { SpiritKind } from '../types'
+import { getSave, patchSave } from '../save/gameSave'
 
 export type OccultItemId =
   | 'salt_line'
@@ -32,7 +34,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
     epithet: 'coarse · unbroken pour',
     pitch:
       'A measured pour for wet thresholds. Families swear by it when something drips that should not. I do not ask what they heard under the floorboards.',
-    cost: 3,
+    cost: 9,
     effect: 'Against the right hunger: a hard knockback. Against others: little more than grit.',
     strongVs: ['lake'],
   },
@@ -42,7 +44,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
     epithet: 'coffin iron · cold head',
     pitch:
       'From a box measured twice and closed once. Drive it where the dirt still answers. Soft metals flatter; this one does not.',
-    cost: 4,
+    cost: 12,
     effect: 'Where the ground remembers: slows and stuns. Elsewhere: a dull tap.',
     strongVs: ['tombstone'],
   },
@@ -52,7 +54,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
     epithet: 'pocket glass · mourning plate',
     pitch:
       'Polished for the parlor, not vanity. Some faces hate a second opinion. Hold it steady — cracking is your concern.',
-    cost: 5,
+    cost: 16,
     effect: 'Before vacant eyes: calm returns and drain stills. Before others: a brief glint.',
     strongVs: ['doll'],
   },
@@ -62,7 +64,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
     epithet: 'wax · black thread · whispered name',
     pitch:
       'Sewn into lapels when vows outlast the voice that made them. Quiets a room that wants to be noticed. Do not wear it to a wedding.',
-    cost: 6,
+    cost: 20,
     effect: 'Against ringing promises: strikes fall silent awhile. Against other hungers: a polite cough.',
     strongVs: ['ring'],
   },
@@ -72,64 +74,93 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
     epithet: 'true name · mourning fold',
     pitch:
       'Expensive. Reserved. The fold we pin when the grounds go wrong — empty seats, chains that move alone. Speak nothing; the cloth remembers the name you should not.',
-    cost: 12,
+    cost: 45,
     effect: 'Only on the playground’s hunger does the crepe bite. Elsewhere it is merely cloth.',
     strongVs: ['demon'],
   },
 ]
 
-const FAVOR_KEY = 'ghost-lens-favor-v1'
-const OWNED_KEY = 'ghost-lens-undertaker-owned-v1'
+/**
+ * Insight economy:
+ * - Completed ghost catches (final capture) pay Insight.
+ * - Mid-ritual seal taps do NOT pay (caller must only grant on finishCapture).
+ * - Discovery (ambient / relics / strangers / whispers / lore) pays Insight.
+ * - Field authenticity bonus applies to both catches and discovery when authentic.
+ */
+export type InsightDiscoveryKind =
+  | 'ambient_scan'
+  | 'relic'
+  | 'stranger'
+  | 'whisper'
+  | 'lore_journal'
 
-/** Favor earned per successful capture by kind. */
-export function favorForCapture(kind: string): number {
+/** Insight for a completed catch / seal (not mid-ritual taps). */
+export function insightForCapture(kind: string): number {
+  // Tuned so cheapest shop tool ≈ 2–3 catches; crepe stays late-game.
   if (kind === 'demon') return 8
   if (kind === 'boss') return 5
-  // Trial lesser echo: bonus Favor only (does not advance main seals)
+  if (kind === 'secret') return 6
   if (kind === 'trial') return 1
-  return 1
+  return 3 // main four
 }
 
-export function loadFavor(): number {
-  try {
-    const raw = localStorage.getItem(FAVOR_KEY)
-    if (!raw) return 0
-    const n = Number(raw)
-    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0
-  } catch {
-    return 0
+/** @deprecated alias */
+export const favorForCapture = insightForCapture
+
+/** Base Insight for discovery events (first unlock). */
+export function insightForDiscovery(kind: InsightDiscoveryKind): number {
+  switch (kind) {
+    case 'relic':
+      return 2
+    case 'stranger':
+      return 2
+    case 'whisper':
+      return 1
+    case 'ambient_scan':
+      return 1
+    case 'lore_journal':
+      return 2
+    default:
+      return 1
   }
 }
 
-export function saveFavor(amount: number): void {
-  try {
-    localStorage.setItem(FAVOR_KEY, String(Math.max(0, Math.floor(amount))))
-  } catch {
-    /* private mode */
-  }
+/** Field bonus helps outdoor play without trivialising shop prices. */
+export const FIELD_AUTHENTICITY_BONUS = 1
+
+/** First-time catch of a spirit kind — modest extra on that completed seal. */
+export const FIRST_CATCH_BONUS = 2
+
+export function loadInsight(): number {
+  return getSave().insight
 }
+
+export function saveInsight(amount: number): void {
+  patchSave({ insight: Math.max(0, Math.floor(amount)) })
+}
+
+/** @deprecated Use loadInsight */
+export const loadFavor = loadInsight
+/** @deprecated Use saveInsight */
+export const saveFavor = saveInsight
 
 export function loadOwnedItems(): OccultItemId[] {
-  try {
-    const raw = localStorage.getItem(OWNED_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    const ids = new Set(OCCULT_CATALOG.map((c) => c.id))
-    return parsed.filter(
-      (x): x is OccultItemId => typeof x === 'string' && ids.has(x as OccultItemId),
-    )
-  } catch {
-    return []
-  }
+  const ids = new Set(OCCULT_CATALOG.map((c) => c.id))
+  return getSave().ownedItems.filter((x) => ids.has(x))
 }
 
 export function saveOwnedItems(owned: OccultItemId[]): void {
-  try {
-    localStorage.setItem(OWNED_KEY, JSON.stringify([...new Set(owned)]))
-  } catch {
-    /* private mode */
-  }
+  patchSave({ ownedItems: [...new Set(owned)] }, { toast: 'Undertaker ledger updated.' })
+}
+
+export function loadEquippedItem(): OccultItemId | null {
+  const eq = getSave().equippedItem
+  if (!eq) return null
+  return OCCULT_CATALOG.some((c) => c.id === eq) ? eq : null
+}
+
+export function saveEquippedItem(id: OccultItemId | null): void {
+  patchSave({ equippedItem: id })
 }
 
 export function getItemDef(id: OccultItemId): OccultItemDef | undefined {

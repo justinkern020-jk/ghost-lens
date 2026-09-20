@@ -1,66 +1,40 @@
 /**
- * NG+ / true-ending progress flags — localStorage.
+ * NG+ / true-ending progress flags — routed through central save blob.
  * clearCount: successful demon seals (hell-hands or kept-photo paths).
  * secretUnlocked: Pale Archivist captured.
  * keptDemonPolaroid: eligible clear skipped hell-hands; photo still held.
  * trueGoodEnding: traded demon photo to cure Keller’s lycanthropy.
  */
 
-const CLEAR_KEY = 'ghost-lens-clear-count-v1'
-const KEPT_DEMON_KEY = 'ghost-lens-kept-demon-polaroid-v1'
-const TRUE_END_KEY = 'ghost-lens-true-good-ending-v1'
+import { getSave, patchSave } from '../save/gameSave'
 
 export function loadClearCount(): number {
-  try {
-    const n = Number(localStorage.getItem(CLEAR_KEY) ?? '0')
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
-  } catch {
-    return 0
-  }
+  return getSave().clearCount
 }
 
 export function incrementClearCount(): number {
-  const next = loadClearCount() + 1
-  try {
-    localStorage.setItem(CLEAR_KEY, String(next))
-  } catch {
-    /* private mode */
-  }
+  const next = getSave().clearCount + 1
+  patchSave({ clearCount: next }, { toast: 'Clear recorded.' })
   return next
 }
 
 export function hasKeptDemonPolaroid(): boolean {
-  try {
-    return localStorage.getItem(KEPT_DEMON_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().keptDemonPolaroid
 }
 
 export function setKeptDemonPolaroid(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(KEPT_DEMON_KEY, '1')
-    else localStorage.removeItem(KEPT_DEMON_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave({ keptDemonPolaroid: on })
 }
 
 export function hasTrueGoodEnding(): boolean {
-  try {
-    return localStorage.getItem(TRUE_END_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().trueGoodEnding
 }
 
 export function markTrueGoodEnding(): void {
-  try {
-    localStorage.setItem(TRUE_END_KEY, '1')
-    localStorage.removeItem(KEPT_DEMON_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave(
+    { trueGoodEnding: true, keptDemonPolaroid: false },
+    { toast: 'True ending sealed into the ledger.' },
+  )
 }
 
 /** Eligible for kept-demon / trade path on the next demon clear. */

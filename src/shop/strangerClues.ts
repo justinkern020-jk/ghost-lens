@@ -1,3 +1,4 @@
+import { getSave, patchSave } from '../save/gameSave'
 /**
  * Mysterious strangers — appear when non-ghost real-world objects are framed.
  * Cryptic whispers hint which undertaker tool harms which haunt.
@@ -80,26 +81,12 @@ export const STRANGER_CLUES: StrangerClue[] = [
   },
 ]
 
-const CLUE_FLAGS_KEY = 'ghost-lens-stranger-clues-v1'
-
 export function loadHeardClues(): Set<string> {
-  try {
-    const raw = localStorage.getItem(CLUE_FLAGS_KEY)
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return new Set()
-    return new Set(parsed.filter((x): x is string => typeof x === 'string'))
-  } catch {
-    return new Set()
-  }
+  return new Set(getSave().strangerClues)
 }
 
 export function saveHeardClues(heard: Set<string>): void {
-  try {
-    localStorage.setItem(CLUE_FLAGS_KEY, JSON.stringify([...heard]))
-  } catch {
-    /* private mode */
-  }
+  patchSave({ strangerClues: [...heard] })
 }
 
 export function clueForLabel(

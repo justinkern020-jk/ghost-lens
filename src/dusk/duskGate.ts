@@ -1,10 +1,13 @@
+import { getSave, patchSave } from '../save/gameSave'
 /**
  * Hunt is only allowed at dusk (local device time).
  * Prefers geolocation + rough solar sunset; falls back to fixed local window.
  * Override: ?forceDusk=1 or localStorage ghost-lens-force-dusk=1
  */
 
-const FORCE_KEY = 'ghost-lens-force-dusk'
+/** @deprecated mirrored via gameSave */
+const _FORCE_KEY_LEGACY = 'ghost-lens-force-dusk'
+void _FORCE_KEY_LEGACY
 
 /** Fixed fallback when geo/sunset unavailable: local 17:30–21:00 */
 export const FALLBACK_DUSK_START_MIN = 17 * 60 + 30
@@ -42,20 +45,11 @@ export function isForceDusk(): boolean {
   } catch {
     /* ignore */
   }
-  try {
-    return localStorage.getItem(FORCE_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().forceDusk
 }
 
 export function setForceDusk(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(FORCE_KEY, '1')
-    else localStorage.removeItem(FORCE_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave({ forceDusk: on })
 }
 
 /**

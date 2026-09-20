@@ -4,7 +4,7 @@ import { OCCULT_CATALOG, type OccultItemId, type OccultItemDef } from './favorSt
 interface Props {
   open: boolean
   onClose: () => void
-  favor: number
+  insight: number
   owned: OccultItemId[]
   onBuy: (id: OccultItemId) => void
   /** Equipped / ready-to-use item for next fight (optional). */
@@ -20,24 +20,24 @@ interface Props {
 function ItemRow({
   item,
   owned,
-  favor,
+  insight,
   equipped,
   onBuy,
   onEquip,
 }: {
   item: OccultItemDef
   owned: boolean
-  favor: number
+  insight: number
   equipped: boolean
   onBuy: () => void
   onEquip: () => void
 }) {
-  const canBuy = !owned && favor >= item.cost
+  const canBuy = !owned && insight >= item.cost
   return (
     <li className={`undertaker-item ${owned ? 'owned' : ''}`}>
       <div className="ut-item-head">
         <h3>{item.name}</h3>
-        <span className="ut-cost">{owned ? 'In your keeping' : `${item.cost} Favor`}</span>
+        <span className="ut-cost">{owned ? 'In your keeping' : `${item.cost} Insight`}</span>
       </div>
       <p className="ut-epithet">{item.epithet}</p>
       <p className="ut-pitch">&ldquo;{item.pitch}&rdquo;</p>
@@ -50,7 +50,7 @@ function ItemRow({
             disabled={!canBuy}
             onClick={onBuy}
           >
-            {canBuy ? 'Accept the measure' : favor < item.cost ? 'Insufficient Favor' : 'Sold'}
+            {canBuy ? 'Accept the measure' : insight < item.cost ? 'Insufficient Insight' : 'Sold'}
           </button>
         ) : (
           <button
@@ -69,7 +69,7 @@ function ItemRow({
 export function UndertakerCounter({
   open,
   onClose,
-  favor,
+  insight,
   owned,
   onBuy,
   equipped,
@@ -86,7 +86,7 @@ export function UndertakerCounter({
           <p className="ut-kicker">AFTER-HOURS COUNTER</p>
           <h2>The Undertaker&apos;s Counter</h2>
           <p className="ut-sub">
-            Favor on account: <strong>{favor}</strong>
+            Insight on account: <strong>{insight}</strong>
             {equipped ? ` · Prepared: ${OCCULT_CATALOG.find((c) => c.id === equipped)?.name}` : ''}
           </p>
         </div>
@@ -112,7 +112,7 @@ export function UndertakerCounter({
         )}
         <div className="undertaker-copy">
           <p className="ut-greeting">
-            Good evening. The dead do not haggle, and neither do I. Bring Favor earned from
+            Good evening. The dead do not haggle, and neither do I. Bring Insight earned from
             sealed spirits — I keep quiet tools for those who hunt past dusk. Which tool for
             which hunger? Ask the living who still walk the edges; I sell, I do not tutor.
             Measure twice. Enter once.
@@ -125,7 +125,7 @@ export function UndertakerCounter({
                   key={item.id}
                   item={item}
                   owned={isOwned}
-                  favor={favor}
+                  insight={insight}
                   equipped={equipped === item.id}
                   onBuy={() => onBuy(item.id)}
                   onEquip={() => onEquip(equipped === item.id ? null : item.id)}
@@ -134,7 +134,7 @@ export function UndertakerCounter({
             })}
           </ul>
           <p className="ut-footer">
-            Tools are spent in the field — one use per manifestation. Favor persists. I do not
+            Tools are spent in the field — one use per manifestation. Insight persists. I do not
             offer refunds; the living rarely return in the same condition.
           </p>
         </div>

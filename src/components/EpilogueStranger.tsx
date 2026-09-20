@@ -153,7 +153,7 @@ export function EpilogueStranger({ open, tradeMode = false, onResolved }: Props)
           <>
             <p className="epilogue-line">
               Danke. You have good manners for someone who has looked into empty
-              seats. Keep the polaroids. The Favor, too — the Undertaker settles
+              seats. Keep the polaroids. The Insight, too — the Undertaker settles
               his own accounts. I take only the glass.
             </p>
             <p className="epilogue-line emphasis">

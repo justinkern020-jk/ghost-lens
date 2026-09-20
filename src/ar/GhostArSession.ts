@@ -2,7 +2,9 @@ import * as THREE from 'three'
 import type { SpiritKind } from '../types'
 import {
   animateHorrorEntity,
+  createAnimState,
   createHorrorEntity,
+  triggerFakeOut,
   type EntityAnimState,
 } from './HorrorEntities'
 import {
@@ -50,12 +52,7 @@ export class GhostArSession {
   private canvas: HTMLCanvasElement
   private clock = new THREE.Clock()
   private lastHitMatrix: THREE.Matrix4 | null = null
-  private animState: EntityAnimState = {
-    aggression: 0,
-    stutterClock: 0,
-    lastStutter: 0,
-    frozenUntil: 0,
-  }
+  private animState: EntityAnimState = createAnimState()
   private proximity = 0
   private light: THREE.HemisphereLight | null = null
   private tmpCamPos = new THREE.Vector3()
@@ -162,12 +159,7 @@ export class GhostArSession {
     this.approachOffset.position.set(0, 0, 0)
     this.approachOffset.scale.set(1, 1, 1)
     this.proximity = 0
-    this.animState = {
-      aggression: 0,
-      stutterClock: 0,
-      lastStutter: 0,
-      frozenUntil: 0,
-    }
+    this.animState = createAnimState()
   }
 
   requestPlace(target: SpiritKind) {
@@ -187,6 +179,17 @@ export class GhostArSession {
   /** 0 = at anchor, 1 = in the player's face (melee). */
   setProximity(n: number) {
     this.proximity = Math.max(0, Math.min(1, n))
+    this.animState.proximity = this.proximity
+  }
+
+  /** Hesitation fake-out lunge — visual snap toward the lens. */
+  triggerFakeOut() {
+    const elapsed = this.clock.elapsedTime
+    if (triggerFakeOut(this.animState, elapsed)) {
+      // Brief approach spike
+      this.proximity = Math.min(1, this.proximity + 0.18)
+      this.animState.proximity = this.proximity
+    }
   }
 
   /**
@@ -406,7 +409,21 @@ export class GhostArSession {
     if (!this.approachOffset || !this.entityRoot || !this.refSpace) {
       return
     }
-    const p = this.proximity
+    // Fake-out boost from anim state
+    let p = this.proximity
+    const now = this.clock.elapsedTime
+    if (now < this.animState.fakeOutUntil) {
+      const peak = this.animState.fakeOutPeak
+      let boost = 0
+      if (now < peak) boost = (now - (peak - 0.18)) / 0.18
+      else boost = 1 - (now - peak) / Math.max(0.01, this.animState.fakeOutUntil - peak)
+      p = Math.min(1, p + Math.max(0, boost) * 0.35)
+    }
+    // Last 20% of proximity: hard rush into face
+    if (p > 0.8) {
+      const u = (p - 0.8) / 0.2
+      p = 0.8 + 0.2 * (u * u * (2 - u)) // ease into melee loom
+    }
     if (p <= 0.001) {
       this.approachOffset.position.set(0, 0, 0)
       this.approachOffset.scale.setScalar(1)
@@ -443,8 +460,8 @@ export class GhostArSession {
     }
     // Scale up as it closes — reads as looming (demon looms hardest)
     const loomBoost =
-      this.activeTarget === 'demon' ? 1.4 : this.activeTarget === 'boss' ? 1.25 : 1
-    this.approachOffset.scale.setScalar(1 + p * 1.4 * loomBoost)
+      this.activeTarget === 'demon' ? 1.65 : this.activeTarget === 'boss' ? 1.4 : 1.1
+    this.approachOffset.scale.setScalar(1 + p * 1.55 * loomBoost)
   }
 
   private onXRFrame(frame: XRFrame | undefined) {

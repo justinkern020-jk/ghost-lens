@@ -5,6 +5,7 @@
  */
 
 import type { TargetType } from '../types'
+import { getSave, patchSave } from '../save/gameSave'
 
 export interface LoreCollectible {
   id: string
@@ -95,26 +96,12 @@ export const LORE_COLLECTIBLES: LoreCollectible[] = [
   },
 ]
 
-const STORAGE_KEY = 'ghost-lens-lore-collectibles-v1'
-
 export function loadUnlockedCollectibles(): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return new Set()
-    return new Set(parsed.filter((x): x is string => typeof x === 'string'))
-  } catch {
-    return new Set()
-  }
+  return new Set(getSave().collectibles)
 }
 
 export function saveUnlockedCollectibles(unlocked: Set<string>): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...unlocked]))
-  } catch {
-    /* private mode */
-  }
+  patchSave({ collectibles: [...unlocked] }, { toast: 'Relic logged.' })
 }
 
 export function allCollectibleLabels(): string[] {

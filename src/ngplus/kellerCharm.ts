@@ -1,7 +1,9 @@
 /**
  * Herr Keller epilogue reward — New Game+ special item.
- * Earned by returning the Ghost Lens; persists in localStorage.
+ * Earned by returning the Ghost Lens; persists via central save blob.
  */
+
+import { getSave, patchSave } from '../save/gameSave'
 
 export const KELLER_CHARM_ID = 'keller_silver_charm' as const
 
@@ -18,41 +20,23 @@ export const KELLER_CHARM = {
     'A silver charm from the Austrian’s strap. The glass remembers who returned it — hungers hesitate a half-step longer.',
 } as const
 
-const CHARM_KEY = 'ghost-lens-keller-charm-v1'
-const NGPLUS_KEY = 'ghost-lens-ngplus-v1'
-
 export function hasKellerCharm(): boolean {
-  try {
-    return localStorage.getItem(CHARM_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().kellerCharm
 }
 
 export function grantKellerCharm(): void {
-  try {
-    localStorage.setItem(CHARM_KEY, '1')
-    localStorage.setItem(NGPLUS_KEY, '1')
-  } catch {
-    /* private mode */
-  }
+  patchSave(
+    { kellerCharm: true, ngplus: true },
+    { toast: "Keller's charm is yours." },
+  )
 }
 
 export function isNgPlusFlag(): boolean {
-  try {
-    return localStorage.getItem(NGPLUS_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().ngplus
 }
 
 export function setNgPlusFlag(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(NGPLUS_KEY, '1')
-    else localStorage.removeItem(NGPLUS_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave({ ngplus: on })
 }
 
 /**
@@ -79,9 +63,5 @@ export function kellerCharmPerkActive(): boolean {
 
 /** Spend the charm in trade (Spookbox Maker). Removes perk; records traded flag externally. */
 export function spendKellerCharm(): void {
-  try {
-    localStorage.removeItem(CHARM_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave({ kellerCharm: false })
 }

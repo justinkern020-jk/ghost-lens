@@ -1516,8 +1516,8 @@ html, body, #root {
 }
 .lore-card.demon-lore h3 { color: #e8a0b0; }
 
-/* —— Favor strip + Undertaker's Counter —— */
-.favor-strip {
+/* —— Insight strip + Undertaker's Counter —— */
+.insight-strip {
   position: absolute;
   top: max(48px, calc(env(safe-area-inset-top) + 40px));
   right: 10px;
@@ -2395,7 +2395,7 @@ html, body, #root {
   font: 14px/1.55 Georgia, serif;
   margin: 0 0 20px;
 }
-.app-cinematic .favor-strip,
+.app-cinematic .insight-strip,
 .app-cinematic .hud { display: none; }
 .app-postgame .brand-mark { opacity: 0.55; }
 
@@ -2791,4 +2791,123 @@ html, body, #root {
 }
 .app-secret .ar-threat-flash {
   background: radial-gradient(ellipse at center, rgba(80, 60, 120, 0.35), transparent 70%);
+}
+
+
+/* —— Scare hit FX (bloodless / uncanny) —— */
+.app-hit-heavy .xr-canvas.active,
+.lens-stage.hit-flash .camera-video {
+  animation: hit-shake 0.38s steps(2) forwards;
+  filter: brightness(1.5) contrast(1.35) saturate(0.35)
+    drop-shadow(3px 0 0 rgba(255, 0, 60, 0.55))
+    drop-shadow(-3px 0 0 rgba(0, 200, 255, 0.45));
+}
+@keyframes hit-shake {
+  0% { transform: translate(0, 0); }
+  15% { transform: translate(-8px, 3px) skewX(-1deg); }
+  30% { transform: translate(9px, -4px); }
+  45% { transform: translate(-5px, -2px) skewX(1deg); }
+  60% { transform: translate(6px, 3px); }
+  100% { transform: translate(0, 0); }
+}
+.app-hit .hit-overlay,
+.hit-overlay {
+  background:
+    radial-gradient(circle at 50% 40%, rgba(140, 0, 0, 0.75), transparent 50%),
+    rgba(0, 0, 0, 0.45) !important;
+  animation: hit-blink 0.38s ease-out forwards !important;
+}
+.app-hit-heavy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.08);
+  mix-blend-mode: difference;
+  animation: invert-flash 0.28s ease-out forwards;
+}
+@keyframes invert-flash {
+  from { opacity: 0.85; }
+  to { opacity: 0; }
+}
+/* RGB split layers */
+.app-hit-heavy .hit-overlay::before,
+.lens-stage.hit-flash .hit-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255,0,80,0.18), transparent 40%, rgba(0,220,255,0.15));
+  mix-blend-mode: screen;
+  animation: rgb-split 0.35s ease-out forwards;
+}
+@keyframes rgb-split {
+  0% { transform: translate(-6px, 0); opacity: 1; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+
+/* Capture shutter payoff */
+.app-capture-flash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  background: #f5f0e6;
+  animation: shutter-white 0.45s ease-out forwards;
+}
+@keyframes shutter-white {
+  0% { opacity: 0.95; }
+  40% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+/* Save toast + panel */
+.save-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 128px;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 8px 14px;
+  background: rgba(5, 8, 6, 0.92);
+  border: 1px solid rgba(125, 255, 178, 0.35);
+  color: var(--acid);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+.save-panel {
+  position: absolute;
+  inset: 8% 6%;
+  z-index: 35;
+  background: rgba(7, 10, 8, 0.96);
+  border: 1px solid rgba(125, 255, 178, 0.25);
+  padding: 16px;
+  overflow: auto;
+  max-width: 480px;
+  margin: 0 auto;
+  left: 0; right: 0;
+}
+.save-panel h2 { margin: 0 0 8px; font-size: 16px; color: var(--acid); }
+.save-panel p { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.save-panel textarea {
+  width: 100%;
+  min-height: 100px;
+  background: #0a0c0a;
+  color: var(--text);
+  border: 1px solid rgba(125,255,178,0.2);
+  font-family: inherit;
+  font-size: 10px;
+  margin: 8px 0;
+}
+.save-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.horror-entity.fake-out {
+  animation: fake-lunge 0.55s ease-out;
+}
+@keyframes fake-lunge {
+  0% { transform: translate(-50%, -50%) scale(var(--grow, 1)); }
+  35% { transform: translate(-50%, -42%) scale(calc(var(--grow, 1) * 1.35)); filter: contrast(1.4); }
+  100% { transform: translate(-50%, -50%) scale(var(--grow, 1)); }
 }

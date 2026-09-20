@@ -198,20 +198,21 @@ export function createWerewolfScene(
       eyeMat.opacity = 1
       wolf.scale.setScalar(1.1 + Math.sin(u * Math.PI) * 0.08)
       wolf.rotation.y = Math.sin(u * 6) * 0.08
-      wolf.position.z = 0
+      if (Math.random() < 0.12) wolf.rotation.z = (Math.random() - 0.5) * 0.2
+      wolf.position.z = Math.random() < 0.08 ? 0.08 : 0
     } else if (t < T.lungeEnd) {
       setPhase('lunge')
       const u = (t - T.howlEnd) / (T.lungeEnd - T.howlEnd)
       const ease = u * u
-      wolf.position.z = ease * 1.6
+      wolf.position.z = ease * 2.1
       wolf.position.y = ease * 0.35
-      wolf.scale.setScalar(1.1 + ease * 1.4)
+      wolf.scale.setScalar(1.15 + ease * 1.85)
       wolf.rotation.x = -ease * 0.5
     } else if (t < T.eatEnd) {
       setPhase('eat')
       const u = (t - T.lungeEnd) / (T.eatEnd - T.lungeEnd)
-      wolf.position.z = 1.6 + u * 0.4
-      wolf.scale.setScalar(2.5 + u * 0.5)
+      wolf.position.z = 2.1 + u * 0.55
+      wolf.scale.setScalar(3.0 + u * 0.7)
       fur.opacity = 0.95 * (1 - u * 0.3)
       snout.rotation.x = Math.sin(u * 40) * 0.25
     } else if (t < T.blackoutEnd) {

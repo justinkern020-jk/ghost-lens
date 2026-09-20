@@ -3,17 +3,24 @@ import type { SpiritKind } from '../types'
 /**
  * Wrap a camera/AR still in a polaroid-style frame with caption strip.
  */
+export interface PolaroidOptions {
+  /** Authentic field seal stamp (flavor only — no Insight). */
+  fieldSeal?: boolean
+  firstCatch?: boolean
+}
+
 export function makePolaroidStill(
   sourceDataUrl: string,
   kind: SpiritKind,
   captionName: string,
+  options: PolaroidOptions = {},
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       try {
         const framePad = 28
-        const bottomPad = 72
+        const bottomPad = options.fieldSeal || options.firstCatch ? 88 : 72
         const maxInnerW = 540
         const scale = Math.min(1, maxInnerW / img.width)
         const innerW = Math.round(img.width * scale)
@@ -93,6 +100,22 @@ export function makePolaroidStill(
         ctx.font = '10px "Courier New", monospace'
         const tw = ctx.measureText(stamp).width
         ctx.fillText(stamp, canvas.width - framePad - tw, capY + 18)
+
+        // Field seal / first-catch stamps (trophy flavor — no Insight)
+        if (options.fieldSeal) {
+          ctx.fillStyle = '#4a3020'
+          ctx.font = 'bold 9px "Courier New", monospace'
+          ctx.fillText('FIELD SEAL', framePad, capY + 34)
+          ctx.strokeStyle = 'rgba(100, 60, 30, 0.55)'
+          ctx.strokeRect(framePad - 2, capY + 24, 68, 14)
+        }
+        if (options.firstCatch) {
+          const label = 'FIRST'
+          ctx.fillStyle = '#3a4a38'
+          ctx.font = 'bold 9px "Courier New", monospace'
+          const lx = options.fieldSeal ? framePad + 76 : framePad
+          ctx.fillText(label, lx, capY + 34)
+        }
 
         resolve(canvas.toDataURL('image/jpeg', 0.88))
       } catch (e) {

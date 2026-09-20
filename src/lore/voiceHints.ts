@@ -1,3 +1,4 @@
+import { getSave, patchSave } from '../save/gameSave'
 /**
  * Disembodied voices — cryptic when/where hints for finding mysterious strangers.
  * Strangers still give item↔ghost matchups; voices teach the hunt schedule.
@@ -53,26 +54,12 @@ export const VOICE_HINTS: VoiceHint[] = [
   },
 ]
 
-const HEARD_KEY = 'ghost-lens-voice-hints-v1'
-
 export function loadHeardVoiceHints(): Set<string> {
-  try {
-    const raw = localStorage.getItem(HEARD_KEY)
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return new Set()
-    return new Set(parsed.filter((x): x is string => typeof x === 'string'))
-  } catch {
-    return new Set()
-  }
+  return new Set(getSave().voiceHints)
 }
 
 export function saveHeardVoiceHints(heard: Set<string>): void {
-  try {
-    localStorage.setItem(HEARD_KEY, JSON.stringify([...heard]))
-  } catch {
-    /* private mode */
-  }
+  patchSave({ voiceHints: [...heard] })
 }
 
 export function nextUnheardVoiceHint(heard: Set<string>): VoiceHint | null {

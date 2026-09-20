@@ -1,10 +1,13 @@
+import { getSave, patchSave } from '../save/gameSave'
 /**
  * Full-moon gate for The Empty Seat's final seal.
  * Simple synodic approximation (local calendar day at noon).
  * Override: ?forceFullMoon=1 or localStorage ghost-lens-force-full-moon=1
  */
 
-const FORCE_KEY = 'ghost-lens-force-full-moon'
+/** @deprecated mirrored via gameSave */
+const _FORCE_KEY_LEGACY = 'ghost-lens-force-full-moon'
+void _FORCE_KEY_LEGACY
 
 /** Mean synodic month (new → new), days. */
 export const SYNODIC_MONTH_DAYS = 29.530588853
@@ -54,20 +57,11 @@ export function isForceFullMoon(): boolean {
   } catch {
     /* ignore */
   }
-  try {
-    return localStorage.getItem(FORCE_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().forceFullMoon
 }
 
 export function setForceFullMoon(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(FORCE_KEY, '1')
-    else localStorage.removeItem(FORCE_KEY)
-  } catch {
-    /* ignore */
-  }
+  patchSave({ forceFullMoon: on })
 }
 
 /** Local calendar noon — stable per local date for the gate. */

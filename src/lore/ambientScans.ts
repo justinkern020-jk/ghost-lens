@@ -1,3 +1,4 @@
+import { getSave, patchSave } from '../save/gameSave'
 /**
  * Ambient object scans — melancholy diegetic readings when props are held in frame.
  * Separate from combat spawns; scanning does not summon a ghost.
@@ -140,7 +141,7 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
       'Grains cling to the glass as if afraid of the table. Ordinary seasoning — or a border someone used to pour against wet thresholds.',
     clue: {
       kind: 'shop',
-      text: 'A measured pour for wet hungers. Favor buys what the Undertaker will not explain.',
+      text: 'A measured pour for wet hungers. Insight buys what the Undertaker will not explain.',
     },
   },
   {
@@ -193,26 +194,12 @@ export function findAmbientScan(id: string): AmbientScanEntry | undefined {
   return AMBIENT_SCANS.find((e) => e.id === id)
 }
 
-const SEEN_KEY = 'ghost-lens-ambient-scans-v1'
-
 export function loadSeenAmbientScans(): Set<string> {
-  try {
-    const raw = localStorage.getItem(SEEN_KEY)
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return new Set()
-    return new Set(parsed.filter((x): x is string => typeof x === 'string'))
-  } catch {
-    return new Set()
-  }
+  return new Set(getSave().ambientScans)
 }
 
 export function saveSeenAmbientScans(seen: Set<string>): void {
-  try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
-  } catch {
-    /* private mode */
-  }
+  patchSave({ ambientScans: [...seen] })
 }
 
 export function readForceScan(): string | boolean {

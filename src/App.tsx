@@ -32,15 +32,30 @@ import {
 } from './inventory/polaroidStore'
 import { pickLore } from './lore/spiritLore'
 import {
-  favorForCapture,
   getItemDef,
   itemStrengthVs,
-  loadFavor,
+  loadInsight,
+  loadEquippedItem,
   loadOwnedItems,
-  saveFavor,
+  saveEquippedItem,
+  saveInsight,
   saveOwnedItems,
   type OccultItemId,
 } from './shop/favorStore'
+import {
+  bootSave,
+  downloadSaveFile,
+  importSaveJson,
+  onSaveToast,
+  patchSave,
+  getSave,
+} from './save/gameSave'
+import { isFieldAuthentic } from './save/fieldAuthenticity'
+import {
+  grantCatchInsight,
+  grantDiscoveryInsight,
+  recordFirstCatch,
+} from './save/discoveryInsight'
 import {
   clueForLabel,
   findClueById,
@@ -238,6 +253,10 @@ export default function App() {
   const [health, setHealth] = useState(MAX_HEALTH)
   const [bpm, setBpm] = useState(56)
   const [hitFlash, setHitFlash] = useState(false)
+  const [captureFlash, setCaptureFlash] = useState(false)
+  const [saveToast, setSaveToast] = useState<string | null>(null)
+  const [savePanelOpen, setSavePanelOpen] = useState(false)
+  const fakeOutDoneRef = useRef(false)
   const [stunned, setStunned] = useState(false)
   const [dead, setDead] = useState(false)
   const [started, setStarted] = useState(false)
@@ -280,7 +299,7 @@ export default function App() {
   const trialOnboardedRef = useRef(
     (() => {
       try {
-        return localStorage.getItem('ghost-lens-trial-onboarded') === '1'
+        return getSave().trialOnboarded
       } catch {
         return false
       }
@@ -289,9 +308,9 @@ export default function App() {
   const [activeKind, setActiveKind] = useState<SpiritKind | null>(null)
   const [capturePhase, setCapturePhase] = useState(0)
   const [capturing, setCapturing] = useState(false)
-  const [favor, setFavor] = useState(() => loadFavor())
+  const [insight, setInsight] = useState(() => loadInsight())
   const [ownedItems, setOwnedItems] = useState<OccultItemId[]>(() => loadOwnedItems())
-  const [equippedItem, setEquippedItem] = useState<OccultItemId | null>(null)
+  const [equippedItem, setEquippedItem] = useState<OccultItemId | null>(() => loadEquippedItem())
   const [itemSpentThisFight, setItemSpentThisFight] = useState(false)
   const [heardClues, setHeardClues] = useState<Set<string>>(() => loadHeardClues())
   const [activeClue, setActiveClue] = useState<StrangerClue | null>(null)
@@ -349,12 +368,27 @@ export default function App() {
   }, [captures])
 
   useEffect(() => {
-    saveFavor(favor)
-  }, [favor])
+    saveInsight(insight)
+  }, [insight])
+
+  // Central save blob — migrate legacy keys, wire toast
+  useEffect(() => {
+    bootSave()
+    setInsight(loadInsight())
+    onSaveToast((msg) => {
+      setSaveToast(msg)
+      window.setTimeout(() => setSaveToast(null), 2200)
+    })
+    return () => onSaveToast(null)
+  }, [])
 
   useEffect(() => {
     saveOwnedItems(ownedItems)
   }, [ownedItems])
+
+  useEffect(() => {
+    saveEquippedItem(equippedItem)
+  }, [equippedItem])
 
   useEffect(() => {
     saveHeardClues(heardClues)
@@ -597,7 +631,7 @@ export default function App() {
       if (!trialOnboardedRef.current) {
         trialOnboardedRef.current = true
         try {
-          localStorage.setItem('ghost-lens-trial-onboarded', '1')
+          patchSave({ trialOnboarded: true })
         } catch {
           /* ignore */
         }
@@ -759,7 +793,7 @@ export default function App() {
           if (!trialOnboardedRef.current) {
             trialOnboardedRef.current = true
             try {
-              localStorage.setItem('ghost-lens-trial-onboarded', '1')
+              patchSave({ trialOnboarded: true })
             } catch {
               /* ignore */
             }
@@ -883,6 +917,21 @@ export default function App() {
       arSessionRef.current?.setAggression(agg)
       arSessionRef.current?.setProximity(prox)
       audioRef.current.setPresence(true, Math.max(agg, prox))
+      // High hesitation: fake-out lunge before flee-or-hit
+      if (
+        agg > 0.62 &&
+        prox > 0.35 &&
+        prox < 0.82 &&
+        !fakeOutDoneRef.current &&
+        Math.random() < 0.08
+      ) {
+        fakeOutDoneRef.current = true
+        arSessionRef.current?.triggerFakeOut?.()
+        audioRef.current.playStinger?.()
+        setStatusLine('It almost had you — keep the frame!')
+      }
+      // Proximity duck then spike
+      audioRef.current.setProximityTension?.(prox, agg)
 
       let h = healthRef.current
       if (now >= drainHaltUntilRef.current) {
@@ -917,6 +966,7 @@ export default function App() {
           setHitFlash(true)
           setStunned(true)
           audioRef.current.playHit()
+          audioRef.current.playStinger?.()
           setStatusLine(
             kind === 'demon'
               ? 'Chains in your chest. The seat is empty and on you.'
@@ -924,8 +974,8 @@ export default function App() {
                 ? 'It hits like four graves at once.'
                 : 'It struck. Your heart skips.',
           )
-          window.setTimeout(() => setHitFlash(false), 220)
-          window.setTimeout(() => setStunned(false), 380)
+          window.setTimeout(() => setHitFlash(false), 380)
+          window.setTimeout(() => setStunned(false), 520)
         }
       }
 
@@ -1118,7 +1168,13 @@ export default function App() {
         next.add(c.id)
         return next
       })
-      setCollectibleToast(c.toast)
+      const g = grantDiscoveryInsight('relic')
+      setInsight(loadInsight())
+      setCollectibleToast(
+        g.field
+          ? `${c.toast} (+${g.total} Insight · field)`
+          : `${c.toast} (+${g.total} Insight)`,
+      )
       window.setTimeout(() => setCollectibleToast(null), 4200)
       clearSustainedCollectible()
     }
@@ -1187,6 +1243,15 @@ export default function App() {
       if (entry) {
         setActiveAmbientScan(entry)
         setSeenAmbientScans((prev) => {
+          if (!prev.has(entry.id)) {
+            const g = grantDiscoveryInsight('ambient_scan')
+            setInsight(loadInsight())
+            setStatusLine(
+              g.field
+                ? `Ambient reading logged. (+${g.total} Insight · field)`
+                : `Ambient reading logged. (+${g.total} Insight)`,
+            )
+          }
           const next = new Set(prev)
           next.add(entry.id)
           saveSeenAmbientScans(next)
@@ -1220,6 +1285,15 @@ export default function App() {
     ambientCooldownRef.current.set(entry.id, now)
     setActiveAmbientScan(entry)
     setSeenAmbientScans((prev) => {
+      if (!prev.has(entry.id)) {
+        const g = grantDiscoveryInsight('ambient_scan')
+        setInsight(loadInsight())
+        setStatusLine(
+          g.field
+            ? `Ambient reading logged. (+${g.total} Insight · field)`
+            : `Ambient reading logged. (+${g.total} Insight)`,
+        )
+      }
       const next = new Set(prev)
       next.add(entry.id)
       saveSeenAmbientScans(next)
@@ -1303,26 +1377,50 @@ export default function App() {
     heardVoiceHints,
   ])
 
+
+
   const dismissVoice = () => {
     if (activeVoice) {
+      const first = !heardVoiceHints.has(activeVoice.id)
       setHeardVoiceHints((prev) => {
         const next = new Set(prev)
         next.add(activeVoice.id)
         return next
       })
-      setStatusLine('A voice fades. Check the whisper journal.')
+      if (first) {
+        const g = grantDiscoveryInsight('whisper')
+        setInsight(loadInsight())
+        setStatusLine(
+          g.field
+            ? `A voice fades. (+${g.total} Insight · field) Journal updated.`
+            : `A voice fades. (+${g.total} Insight) Check the whisper journal.`,
+        )
+      } else {
+        setStatusLine('A voice fades. Check the whisper journal.')
+      }
     }
     setActiveVoice(null)
   }
 
   const dismissStranger = () => {
     if (activeClue) {
+      const first = !heardClues.has(activeClue.id)
       setHeardClues((prev) => {
         const next = new Set(prev)
         next.add(activeClue.id)
         return next
       })
-      setStatusLine('A stranger’s words linger.')
+      if (first) {
+        const g = grantDiscoveryInsight('stranger')
+        setInsight(loadInsight())
+        setStatusLine(
+          g.field
+            ? `A stranger's words linger. (+${g.total} Insight · field)`
+            : `A stranger's words linger. (+${g.total} Insight)`,
+        )
+      } else {
+        setStatusLine("A stranger's words linger.")
+      }
     }
     setActiveClue(null)
   }
@@ -1442,9 +1540,15 @@ export default function App() {
 
     const prior = countOfKind(captures, kind)
     const lorePick = pickLore(kind, prior)
+    const field = isFieldAuthentic()
+    const firstLine = recordFirstCatch(kind)
+    const isFirst = !!firstLine
     let polaroidUrl = raw.dataUrl
     try {
-      polaroidUrl = await makePolaroidStill(raw.dataUrl, kind, lorePick.name)
+      polaroidUrl = await makePolaroidStill(raw.dataUrl, kind, lorePick.name, {
+        fieldSeal: field,
+        firstCatch: isFirst,
+      })
     } catch {
       /* keep raw */
     }
@@ -1464,24 +1568,48 @@ export default function App() {
       isBoss: kind === 'boss',
       isDemon: kind === 'demon',
       isTrial: kind === 'trial',
+      isSecret: kind === 'secret',
+      fieldSeal: field,
+      firstCatch: isFirst,
     }
     setCaptures((c) => [cap, ...c])
 
-    const earned = favorForCapture(kind)
-    setFavor((f) => f + earned)
+    // Completed catch pays Insight (+ field / first bonuses). Mid-ritual taps do not.
+    const grant = grantCatchInsight(kind, { isFirstCatch: isFirst, forceField: field })
+    setInsight(loadInsight())
 
     const profile = tensionFor(kind)
-    setStatusLine(
+    const stamps = [
+      field ? 'Field seal' : null,
+      isFirst ? 'First catch' : null,
+      `+${grant.total} Insight`,
+    ].filter(Boolean).join(' · ')
+    const baseLine =
       kind === 'demon'
-        ? `Sealed: ${lorePick.name}. The ground remembers. (+${earned} Favor)`
+        ? `Sealed: ${lorePick.name}. The ground remembers.`
         : kind === 'boss'
-          ? `Sealed: ${lorePick.name}. The threshold goes quiet. (+${earned} Favor)`
+          ? `Sealed: ${lorePick.name}. The threshold goes quiet.`
           : kind === 'trial'
-            ? `Trial sealed — ${lorePick.name}. Lesser echo. (+${earned} Favor)`
-            : `Polaroid sealed — ${lorePick.name}. (+${earned} Favor)`,
-    )
+            ? `Trial sealed — ${lorePick.name}. Lesser echo.`
+            : kind === 'secret'
+              ? `Vault sealed — ${lorePick.name}.`
+              : `Polaroid sealed — ${lorePick.name}.`
+    setStatusLine(`${baseLine} ${stamps}.`)
+    if (firstLine) {
+      window.setTimeout(() => setStatusLine(`Undertaker: "${firstLine}"`), 1800)
+    }
+
+    // Capture moment: shutter flash, freeze, calm relief
+    setCaptureFlash(true)
+    window.setTimeout(() => setCaptureFlash(false), 480)
+    void audioRef.current.ensure().then(() => {
+      audioRef.current.playCaptureShutter?.()
+      audioRef.current.playRelief?.()
+    })
+
     appearAtRef.current = null
     meleeEnteredAtRef.current = null
+    fakeOutDoneRef.current = false
     setAggression(0)
     setProximity(0)
     setCapturePhase(0)
@@ -1489,7 +1617,7 @@ export default function App() {
     const healed = Math.min(MAX_HEALTH, healthRef.current + profile.captureHeal)
     healthRef.current = healed
     setHealth(healed)
-    setBpm(bpmFromState(0, healed))
+    setBpm(Math.max(52, Math.round(bpmFromState(0, healed) * 0.85)))
     resetGhost()
     arSessionRef.current?.hideGhost()
     placedForRef.current = null
@@ -1928,11 +2056,11 @@ export default function App() {
     const def = getItemDef(id)
     if (!def) return
     if (ownedItems.includes(id)) return
-    if (favor < def.cost) {
-      setStatusLine('The undertaker waits. Favor insufficient.')
+    if (insight < def.cost) {
+      setStatusLine('The undertaker waits. Insight insufficient.')
       return
     }
-    setFavor((f) => f - def.cost)
+    setInsight((n) => n - def.cost)
     setOwnedItems((o) => [...o, id])
     setStatusLine(`Purchased: ${def.name}. Keep it close.`)
   }
@@ -2015,7 +2143,7 @@ export default function App() {
             trial echo the lens alone can hold. Capture into a polaroid before
             it closes the distance. Seal all four to wake the{' '}
             <em>Threshold Warden</em>, then bring the photographs to the{' '}
-            <em>playground</em>. Spend Favor at{' '}
+            <em>playground</em>. Spend Insight at{' '}
             <em>The Undertaker&apos;s Counter</em>.
           </p>
           <ul className="boot-list">
@@ -2040,7 +2168,7 @@ export default function App() {
                   : ''}
             </li>
             <li>
-              Favor: {favor}
+              Insight: {insight}
               {ownedItems.length ? ` · tools ${ownedItems.length}/5` : ''}
               {heardClues.size ? ` · clues ${heardClues.size}` : ''}
               {heardVoiceHints.size ? ` · voices ${heardVoiceHints.size}` : ''}
@@ -2137,7 +2265,7 @@ export default function App() {
 
   return (
     <div
-      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''} ${isSecret ? 'app-secret' : ''} ${isTrial ? 'app-trial' : ''} ${cinematicLock ? 'app-cinematic' : ''} ${postGame ? 'app-postgame' : ''}`}
+      className={`app-root ${hitFlash ? 'app-hit app-hit-heavy' : ''} ${captureFlash ? 'app-capture-flash' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''} ${isSecret ? 'app-secret' : ''} ${isTrial ? 'app-trial' : ''} ${cinematicLock ? 'app-cinematic' : ''} ${postGame ? 'app-postgame' : ''}`}
     >
       <canvas
         ref={xrCanvasRef}
@@ -2272,17 +2400,24 @@ export default function App() {
       />
       )}
 
-      {/* Favor + shop + tool use strip */}
+      {/* Insight + shop + tool use strip */}
       {!cinematicLock && (
-      <div className="favor-strip">
+      <div className="insight-strip">
         <button
           type="button"
           className="btn undertaker-open-btn"
           onClick={() => setShopOpen(true)}
         >
-          Undertaker · {favor} Favor
+          Undertaker · {insight} Insight
         </button>
-        <button
+                <button
+          type="button"
+          className="btn"
+          onClick={() => setSavePanelOpen(true)}
+        >
+          Save
+        </button>
+<button
           type="button"
           className="btn journal-open-btn"
           onClick={() => setJournalOpen(true)}
@@ -2357,7 +2492,7 @@ export default function App() {
       <UndertakerCounter
         open={shopOpen}
         onClose={() => setShopOpen(false)}
-        favor={favor}
+        insight={insight}
         owned={ownedItems}
         onBuy={buyItem}
         equipped={equippedItem}
@@ -2371,6 +2506,60 @@ export default function App() {
           <p className="voice-kicker">A VOICE WITHOUT A BODY</p>
           <p className="voice-line">&ldquo;{activeVoice.line}&rdquo;</p>
           <p className="voice-dismiss">Tap to commit to the journal</p>
+        </div>
+      )}
+
+      
+      {saveToast && (
+        <div className="save-toast" role="status">{saveToast}</div>
+      )}
+      {savePanelOpen && (
+        <div className="save-panel" role="dialog" aria-label="Save and backup">
+          <h2>Save / Backup</h2>
+          <p>
+            Progress autosaves. Export a JSON backup before clearing browser data —
+            especially if you hunt outdoors.
+          </p>
+          <div className="save-actions">
+            <button type="button" className="btn" onClick={() => downloadSaveFile()}>
+              Download save JSON
+            </button>
+            <button type="button" className="btn ghost-btn" onClick={() => setSavePanelOpen(false)}>
+              Close
+            </button>
+          </div>
+          <p>Or paste a save file below:</p>
+          <textarea
+            id="save-import-box"
+            placeholder='{ "v": 1, "insight": ... }'
+            spellCheck={false}
+          />
+          <div className="save-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                const el = document.getElementById('save-import-box') as HTMLTextAreaElement | null
+                const raw = el?.value?.trim() ?? ''
+                if (!raw) {
+                  setStatusLine('Paste a save JSON first.')
+                  return
+                }
+                const res = importSaveJson(raw)
+                if (!res.ok) {
+                  setStatusLine(res.error)
+                  return
+                }
+                setInsight(loadInsight())
+                setCaptures(res.save.polaroids)
+                setOwnedItems(res.save.ownedItems)
+                setSavePanelOpen(false)
+                setStatusLine('Save imported. Insight and polaroids restored.')
+              }}
+            >
+              Import save
+            </button>
+          </div>
         </div>
       )}
 

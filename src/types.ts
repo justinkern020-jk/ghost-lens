@@ -154,6 +154,10 @@ export interface Capture {
   isTrial?: boolean
   /** NG+ secret character ghost. */
   isSecret?: boolean
+  /** Authentic outdoor field seal (flavor stamp — no Insight). */
+  fieldSeal?: boolean
+  /** First time this spirit kind was sealed. */
+  firstCatch?: boolean
 }
 
 export type ArMode = 'checking' | 'webxr' | 'fallback' | 'unsupported'

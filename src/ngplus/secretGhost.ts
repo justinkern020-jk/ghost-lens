@@ -4,6 +4,7 @@
  */
 
 import { SECRET_TRIGGER_LABELS } from '../types'
+import { getSave, patchSave } from '../save/gameSave'
 
 export const SECRET_GHOST_ID = 'pale_archivist' as const
 
@@ -18,22 +19,12 @@ export const SECRET_GHOST = {
     'A vaulted hunger that files the living under the wrong name. The cipher on the photographs spelled CRYPT.',
 } as const
 
-const UNLOCKED_KEY = 'ghost-lens-secret-unlocked-v1'
-
 export function isSecretUnlocked(): boolean {
-  try {
-    return localStorage.getItem(UNLOCKED_KEY) === '1'
-  } catch {
-    return false
-  }
+  return getSave().secretUnlocked
 }
 
 export function markSecretUnlocked(): void {
-  try {
-    localStorage.setItem(UNLOCKED_KEY, '1')
-  } catch {
-    /* private mode */
-  }
+  patchSave({ secretUnlocked: true }, { toast: 'Vault unlock recorded.' })
 }
 
 export function readForceSecretGhost(): boolean {

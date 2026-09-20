@@ -2,7 +2,43 @@
 
 Mobile-first horror lens: point your phone’s **rear camera** at a real **tombstone**, **ring**, **doll**, or **lake**. After a short sustained detection, an uncanny entity manifests. Keep it framed and tap **Capture** before it **approaches**, drains your calm, and strikes.
 
-Successful captures become **polaroids** with spirit lore and earn **Favor**. Seal all four types to unlock the **Threshold Warden** (mid-boss), then bring the photographs to the **playground** for the endgame **Demon**. Spend Favor at **The Undertaker’s Counter**. **Disembodied voices** and **mysterious strangers** teach when/where to hunt and which tools bite which hungers — the shop never wikis the matchups.
+Successful captures become **polaroids** with spirit lore and earn **Insight**. Seal all four types to unlock the **Threshold Warden** (mid-boss), then bring the photographs to the **playground** for the endgame **Demon**. Spend Insight at **The Undertaker’s Counter**. **Disembodied voices** and **mysterious strangers** teach when/where to hunt and which tools bite which hungers — the shop never wikis the matchups.
+
+
+## Save / Backup
+
+All progress lives in one versioned **localStorage** blob (`ghost-lens-save-v1`), autosaved on every meaningful change:
+
+- Polaroids, Insight, shop purchases, equipped tools
+- Keller charm, Spookbox, NG+ / clear flags, Archivist unlock, true-end flags
+- Relics, ambient scans, voice whispers, stranger clues
+- First-catch notes, field-seal count, dusk/moon force overrides, trial onboarding
+
+On boot, scattered legacy keys are **migrated** into the blob (including old **Favor** → **Insight**).
+
+Use in-app **Save** to **download JSON** or **import** a backup — clearing browser data need not wipe an outdoor hunt.
+
+## Insight economy
+
+| Source | Insight (base) | Notes |
+|--------|----------------|-------|
+| Main catch (tombstone/ring/doll/lake) | 3 | Completed capture only |
+| Trial catch | 1 | |
+| Threshold Warden | 5 | Finishing capture, not mid-phase taps |
+| Pale Archivist | 6 | Finishing capture |
+| Empty Seat (Demon) | 8 | Finishing capture / keep-polaroid success |
+| First catch of a kind | +2 | Once per spirit kind |
+| Field authenticity | +1 | Real dusk, no force-flags — catches **and** discovery |
+| Ambient scan (first) | 1 | |
+| Relic / lore scrap | 2 | |
+| Stranger clue | 2 | |
+| Whisper voice | 1 | |
+
+**Undertaker prices** (Insight): Salt Line 9 · Iron Nail 12 · Silver Mirror 16 · Hush Charm 20 · Black Crepe 45. Cheapest ≈ 2–3 catches; crepe is late-game.
+
+## Scare design
+
+Stylized Three.js / WebXR dread (not photoreal gore): meaner entity stages (calm → wrong → nightmare), stutter freezes, micro-teleports, fake-out lunges on hesitation, last-20% approach rush, heavy hit FX (RGB split, shake, invert flash), louder dread bed with proximity duck/spike and jump-scare stingers. Capture payoff: shutter flash, calm relief, polaroid stamps (FIELD SEAL / FIRST).
 
 ## Dusk gate
 
@@ -48,7 +84,7 @@ After the four polaroids are sealed (Warden may be mid-boss before or alongside)
 3. **The Empty Seat** (Demon) spawns — playground-tainted, wrong child-scale proportions, swing chains, empty seats (dread, not gore).
 4. Harder than the Warden: faster approach, heavier drain, stronger hits; **5-tap ritual** that burns the four polaroids into the seal (ritual strip UI).
 5. **Final seal requires a full moon** (local calendar day). The demon can still appear and threaten outside the full moon; intermediate ritual taps still burn photographs — only the finishing **Seal** is blocked with: *“It won't take the photograph until the moon is full.”*
-6. Win: demon polaroid + bleakest lore + Favor. Lose: died of fright.
+6. Win: demon polaroid + bleakest lore + Insight. Lose: died of fright.
 
 `forceDusk` still required outside real dusk. `forceFullMoon` (or **Force full moon (test)**) unlocks the demon finish for daytime / off-cycle testing.
 
@@ -75,11 +111,11 @@ Sustained CLIP on ghost-tied real-world props unlocks **lore scraps** deeper tha
 
 Subtle toast on unlock. Browse **Relics** (separate from Polaroids and Whispers). Dev: `?forceCollectible=1` or `?forceCollectible=wilted_offering`.
 
-## Favor + The Undertaker’s Counter
+## Insight + The Undertaker’s Counter
 
-- Captures earn **Favor** (1 normal / 5 Warden / 8 Demon), persisted in localStorage.
-- Open **Undertaker · N Favor** — period shop with an **1800s undertaker** portrait (black coat, mourning wear, coffin-measure energy, cold polite smile). Cryptic catalog copy only; **no matchup wiki**.
-- Occult tools (owned + Favor persist):
+- Captures earn **Insight** (1 normal / 5 Warden / 8 Demon), persisted in localStorage.
+- Open **Undertaker · N Insight** — period shop with an **1800s undertaker** portrait (black coat, mourning wear, coffin-measure energy, cold polite smile). Cryptic catalog copy only; **no matchup wiki**.
+- Occult tools (owned + Insight persist):
 
 | Item | Cost | Effective mainly vs |
 |------|------|---------------------|
@@ -127,7 +163,7 @@ First-catch **lesser echo** for onboarding:
 | **Trigger** | CLIP **`chair`** (common, reliable) |
 | **Capture** | Camera only — **1-tap Capture**, no shop item, no multi-seal |
 | **Tension** | Slower approach (~11s), gentler calm drain, longer window |
-| **Progress** | Does **not** count toward the four main seals / playground unlock; awards bonus Favor only |
+| **Progress** | Does **not** count toward the four main seals / playground unlock; awards bonus Insight only |
 | **Onboarding** (once) | *“A thin one. The lens alone will hold it.”* |
 | **Dev** | `?forceTrial=1` or boot **Force trial (test)** |
 
@@ -153,7 +189,7 @@ Persisted in **localStorage**: NG+ flag, Keller charm, clear count, secret unloc
 | **Polaroid cipher** | NG+ only: each main seal + trial polaroid gets a stamped letter. Together they spell **CRYPT**. |
 | **Secret ghost** | *The Pale Archivist* — NG+ only. Point the lens at a **crypt / mausoleum / ossuary**. **3-seal** fight; the **final seal is blocked** until you activate the **Spookbox** mid-fight, call a protector (ITC minigame), and stun the Archivist. Only way to land the finishing blow. Capturing marks secret unlocked. |
 | **Spookbox Maker** | Mysterious Justin-coded character. Separate UI + portrait `public/portraits/spookbox-maker.png`. Appears only at **dusk** while framing a **radio / toolbox / garage / workshop / electronics / workbench**. Offers a **Spookbox** for **Keller's Silver Charm**. Without the charm: cryptic refusal. |
-| **Spookbox** | Persisted in localStorage. Equip from the Favor strip; on the Archivist’s last seal, **Activate Spookbox** → Call protector → stun VFX → final Capture allowed. |
+| **Spookbox** | Persisted in localStorage. Equip from the Insight strip; on the Archivist’s last seal, **Activate Spookbox** → Call protector → stun VFX → final Capture allowed. |
 | **True good ending** | Requires **clear count ≥ 2** and **secret unlocked**, plus a **full-moon** demon final seal. On that clear, hell-hands are **suppressed** — you **keep the demon polaroid** and can **trade it to Keller** to **cure his lycanthropy**. Peaceful epilogue; no werewolf. |
 
 ### Spookbox Maker — time & place
@@ -207,7 +243,7 @@ npx vite --host --https
 
 1. Install **Google Play Services for AR (ARCore)**. Open in **Chrome**. Allow camera (and location for solar dusk).
 2. Daytime build: `?forceDusk=1` or **Force dusk (test)**.
-3. **Open the lens** → hold tombstone / ring / doll / lake until each manifests → **Capture** (earn Favor + polaroids).
+3. **Open the lens** → hold tombstone / ring / doll / lake until each manifests → **Capture** (earn Insight + polaroids).
 4. Optional: wait for a **voice** subtitle; check **Whispers** journal for when/where. Frame candle/cross/etc. for **strangers** → learn which tool for which haunt. Buy tools at the **Undertaker**.
 5. Seal all four types → Warden may appear (3 seals) as mid-boss; status: *Bring the photographs to the playground.*
 6. Go to a night playground (or **I’ve arrived** / `?forcePlayground=1`) with dusk still forced/real.
@@ -220,7 +256,7 @@ npm run preview -- --host
 
 ## Privacy
 
-Camera frames classified **on device**. Polaroids, Favor, owned tools, clue/voice flags, NG+ progress, Spookbox / charm trade flags, and ambient scan history persist in **localStorage** only. Geolocation (optional) only for solar dusk.
+Camera frames classified **on device**. Polaroids, Insight, owned tools, clue/voice flags, NG+ progress, Spookbox / charm trade flags, and ambient scan history persist in **localStorage** only. Geolocation (optional) only for solar dusk.
 
 ## Spookbox (in-game) vs Spookbox (project)
 

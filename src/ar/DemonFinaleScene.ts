@@ -173,10 +173,14 @@ export function createDemonFinaleScene(
       handL.visible = true
       handR.visible = true
       const u = (t - T.crackEnd) / (T.reachEnd - T.crackEnd)
-      handL.position.y = -0.35 + u * 0.48
-      handR.position.y = -0.35 + u * 0.48
+      handL.position.y = -0.35 + u * 0.55
+      handR.position.y = -0.35 + u * 0.55
       handL.rotation.z = -0.2 + u * 0.15
       handR.rotation.z = 0.2 - u * 0.15
+      handL.position.x = -0.12 + (Math.random() - 0.5) * 0.02 * u
+      handR.position.x = 0.12 + (Math.random() - 0.5) * 0.02 * u
+      handL.scale.setScalar(0.9 + u * 0.35)
+      handR.scale.setScalar(0.9 + u * 0.35)
     } else if (t < T.pullEnd) {
       setPhase('pull')
       const u = (t - T.reachEnd) / (T.pullEnd - T.reachEnd)

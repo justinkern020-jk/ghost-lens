@@ -62,9 +62,22 @@ export function proximityFromElapsed(ms: number, approachMs = APPROACH_MS): numb
 }
 
 /** Ease-in so early seconds feel safer, late approach rushes. */
+/**
+ * Soft early approach, then a hard rush in the last 20% of the clock
+ * so the figure suddenly closes into melee / face-distance.
+ */
 export function easedProximity(raw: number): number {
   const t = Math.max(0, Math.min(1, raw))
-  return t * t * (3 - 2 * t) // smoothstep
+  // First 80% of clock → ~0..0.58 (still framed, not yet melee)
+  if (t <= 0.8) {
+    const u = t / 0.8
+    const smooth = u * u * (3 - 2 * u)
+    return 0.58 * smooth
+  }
+  // Last 20%: cubic acceleration into the player's face (0.58 → 1)
+  const u = (t - 0.8) / 0.2
+  const rush = u * u * u
+  return 0.58 + 0.42 * rush
 }
 
 export function bpmFromState(proximity: number, health: number): number {
