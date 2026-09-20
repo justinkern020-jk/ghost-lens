@@ -1,11 +1,13 @@
 interface Props {
   onRetry: () => void
+  /** Return to boot hub without retrying the hunt. */
+  onLeave?: () => void
   /** Special refuse-path death after Keller’s werewolf attack. */
   hunterDeath?: boolean
 }
 
 /** Blackout game-over: flatline + "Died of fright" (or hunter’s due). */
-export function DeathScreen({ onRetry, hunterDeath = false }: Props) {
+export function DeathScreen({ onRetry, onLeave, hunterDeath = false }: Props) {
   return (
     <div
       className={`death-screen ${hunterDeath ? 'hunter-death' : ''}`}
@@ -34,6 +36,11 @@ export function DeathScreen({ onRetry, hunterDeath = false }: Props) {
       <button type="button" className="btn capture-btn death-retry" onClick={onRetry}>
         Retry
       </button>
+      {onLeave && (
+        <button type="button" className="btn ghost-btn leave-hunt-btn" onClick={onLeave}>
+          Leave hunt
+        </button>
+      )}
     </div>
   )
 }

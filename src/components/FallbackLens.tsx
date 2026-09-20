@@ -4,6 +4,7 @@ import type { SpiritKind } from '../types'
 interface Props {
   videoRefAttach: (el: HTMLVideoElement | null) => void
   videoReady: boolean
+  cameraError?: string | null
   ghostVisible: boolean
   ghostTarget: SpiritKind | null
   fleeing: boolean
@@ -22,6 +23,7 @@ interface Props {
 export function FallbackLens({
   videoRefAttach,
   videoReady,
+  cameraError = null,
   ghostVisible,
   ghostTarget,
   fleeing,
@@ -75,6 +77,10 @@ export function FallbackLens({
       <video
         ref={(el) => {
           videoEl.current = el
+          if (el) {
+            el.setAttribute('playsinline', 'true')
+            el.setAttribute('webkit-playsinline', 'true')
+          }
           videoRefAttach(el)
         }}
         className="camera-video"
@@ -82,6 +88,16 @@ export function FallbackLens({
         muted
         autoPlay
       />
+      {!videoReady && !cameraError && (
+        <div className="camera-status-banner" role="status">
+          Starting camera…
+        </div>
+      )}
+      {cameraError && (
+        <div className="camera-status-banner warn" role="alert">
+          Camera error: {cameraError}
+        </div>
+      )}
       <div className="viewfinder" aria-hidden />
       <div className="film-grain" aria-hidden />
       <div className="vignette" aria-hidden />

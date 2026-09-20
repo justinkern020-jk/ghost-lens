@@ -28,6 +28,7 @@ type Step =
  */
 export function BazaarIntro({ open, onComplete, audio }: Props) {
   const [step, setStep] = useState<Step>('enter')
+  const [bgFailed, setBgFailed] = useState(false)
 
   if (!open) return null
 
@@ -45,9 +46,29 @@ export function BazaarIntro({ open, onComplete, audio }: Props) {
   }
 
   return (
-    <div className="bazaar-intro" role="dialog" aria-label="Kern's Bizarre Bazaar">
+    <div
+      className={`bazaar-intro ${bgFailed ? 'bazaar-intro-fallback' : ''}`}
+      role="dialog"
+      aria-label="Kern's Bizarre Bazaar"
+    >
+      {!bgFailed && (
+        <img
+          className="bazaar-bg-img"
+          src="/bazaar/bazaar-interior.png"
+          alt=""
+          aria-hidden
+          onError={() => setBgFailed(true)}
+        />
+      )}
       <div className="bazaar-veil" aria-hidden />
       <div className="bazaar-grain" aria-hidden />
+      <button
+        type="button"
+        className="btn ghost-btn bazaar-skip-always"
+        onClick={() => finish('skip')}
+      >
+        Skip
+      </button>
       <div className="bazaar-card">
         <p className="bazaar-kicker">KERN&apos;S BIZARRE BAZAAR</p>
         <p className="bazaar-subtitle">A cold open · before the hunt</p>

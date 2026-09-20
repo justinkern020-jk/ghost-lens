@@ -442,11 +442,9 @@ export default function App() {
     capturePhaseRef.current = capturePhase
   }, [capturePhase])
 
-  const useFallbackCam =
-    started &&
-    dusk.allowed &&
-    (arMode === 'fallback' || arMode === 'unsupported') &&
-    !arRunning
+  // Always show getUserMedia preview while hunting unless WebXR owns the view.
+  // WebXR-capable phones used to stay on a black screen until "Enter AR".
+  const useFallbackCam = started && dusk.allowed && !arRunning
   const camera = useCamera(useFallbackCam)
   const {
     ready: modelReady,
@@ -497,15 +495,20 @@ export default function App() {
   const classifyStreamRef = useRef<MediaStream | null>(null)
   const classifyVideoRef = useRef<HTMLVideoElement | null>(null)
 
-  // Classification loop — only while dusk allows hunting
+  // Classification loop — only while dusk allows hunting.
+  // In fallback/preview mode NEVER open a second getUserMedia (mobile often
+  // steals/stops the visible camera, leaving frames empty and peak at 0%).
   useEffect(() => {
     if (!started || !modelReady || !dusk.allowed || dead) return
     let cancelled = false
     let raf = 0
 
     const ensureClassifyVideo = async () => {
-      if (useFallbackCam && fallbackVideoRef.current) {
-        return fallbackVideoRef.current
+      if (useFallbackCam) {
+        const v = fallbackVideoRef.current
+        if (v && v.readyState >= 2 && v.videoWidth > 0) return v
+        // Wait until FallbackLens video has real frames — do not open a 2nd stream.
+        return null
       }
       if (!classifyVideoRef.current) {
         const v = document.createElement('video')
@@ -532,7 +535,7 @@ export default function App() {
     const loop = async () => {
       if (cancelled) return
       const vid = await ensureClassifyVideo()
-      if (vid && vid.readyState >= 2) {
+      if (vid && vid.readyState >= 2 && (vid.videoWidth || 0) > 0) {
         await classifyFrame(vid)
       }
       raf = window.setTimeout(() => void loop(), 50) as unknown as number
@@ -542,10 +545,13 @@ export default function App() {
     return () => {
       cancelled = true
       clearTimeout(raf)
-      classifyStreamRef.current?.getTracks().forEach((t) => t.stop())
-      classifyStreamRef.current = null
+      // Only tear down the hidden AR classify stream — not the visible fallback camera.
+      if (!useFallbackCam) {
+        classifyStreamRef.current?.getTracks().forEach((t) => t.stop())
+        classifyStreamRef.current = null
+      }
     }
-  }, [started, modelReady, useFallbackCam, classifyFrame, dusk.allowed, dead])
+  }, [started, modelReady, useFallbackCam, classifyFrame, dusk.allowed, dead, camera.ready])
 
   // If dusk ends mid-session, tear down hunt
   useEffect(() => {
@@ -1515,6 +1521,34 @@ export default function App() {
     await audioRef.current.ensure()
   }
 
+  /** Exit AR / overlay hunt back to boot hub without relying on browser Back. */
+  const leaveHunt = useCallback(() => {
+    appearAtRef.current = null
+    placedForRef.current = null
+    setAggression(0)
+    setProximity(0)
+    setFleeing(false)
+    setActiveKind(null)
+    setCapturePhase(0)
+    resetGhost()
+    arSessionRef.current?.hideGhost()
+    audioRef.current.setPresence(false, 0)
+    audioRef.current.setHeartbeat(56, false)
+    if (arRunning) {
+      void arSessionRef.current?.end()
+      setArRunning(false)
+    }
+    classifyStreamRef.current?.getTracks().forEach((t) => t.stop())
+    classifyStreamRef.current = null
+    setGalleryOpen(false)
+    setShopOpen(false)
+    setJournalOpen(false)
+    setRelicsOpen(false)
+    setSavePanelOpen(false)
+    setStatusLine('')
+    setStarted(false)
+  }, [arRunning, resetGhost])
+
   const startWebXr = async () => {
     if (!dusk.allowed) {
       setStatusLine(dusk.status.reason)
@@ -2424,6 +2458,7 @@ export default function App() {
           <p className="dusk-lock-kicker">HARD LIGHT</p>
           <h2>The dead don&apos;t walk in hard light</h2>
           <p>{dusk.status.reason}</p>
+          <p className="dusk-window">Dusk gate — scanning paused.</p>
           {dusk.status.windowLabel && dusk.status.windowLabel !== 'forced' && (
             <p className="dusk-window">Return {dusk.status.windowLabel} local.</p>
           )}
@@ -2434,6 +2469,13 @@ export default function App() {
           >
             {dusk.forceDusk ? 'Force dusk (test): ON' : 'Force dusk (test): OFF'}
           </button>
+          <button
+            type="button"
+            className="btn ghost-btn leave-hunt-btn"
+            onClick={leaveHunt}
+          >
+            Leave hunt
+          </button>
         </div>
       )}
 
@@ -2441,6 +2483,7 @@ export default function App() {
         <FallbackLens
           videoRefAttach={camera.attach}
           videoReady={camera.ready}
+          cameraError={camera.error}
           ghostVisible={
             !cinematicLock && (ghostShouldShow || fleeing || demonVisible || trialVisible || secretVisible)
           }
@@ -2504,6 +2547,9 @@ export default function App() {
         anchored={anchored}
         modelReady={modelReady}
         loadingMsg={loadingMsg}
+        modelError={modelError}
+        duskPaused={!dusk.allowed}
+        onLeaveHunt={leaveHunt}
         captureDisabled={
           !dusk.allowed ||
           !(ghostShouldShow || demonVisible || trialVisible || secretVisible) ||
@@ -2773,7 +2819,11 @@ export default function App() {
       <StrangerVignette clue={activeClue} onDismiss={dismissStranger} />
 
       {dead && (
-        <DeathScreen onRetry={retryAfterDeath} hunterDeath={hunterDeath} />
+        <DeathScreen
+          onRetry={retryAfterDeath}
+          onLeave={leaveHunt}
+          hunterDeath={hunterDeath}
+        />
       )}
     </div>
   )

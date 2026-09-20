@@ -7,6 +7,7 @@ import {
   COLLECTIBLE_SCENE_LABELS,
   STRANGER_SCENE_LABELS,
   TARGET_LABELS,
+  TRIAL_TRIGGER_ALIASES,
   TRIAL_TRIGGER_LABEL,
   type DetectionResult,
   type PlaygroundLabel,
@@ -27,9 +28,9 @@ const PLAYGROUND_CONFIDENCE_THRESHOLD = 0.26
 const STRANGER_CONFIDENCE_THRESHOLD = 0.27
 const COLLECTIBLE_CONFIDENCE_THRESHOLD = 0.26
 /** Trial chair — easier / earlier spawn. */
-const TRIAL_CONFIDENCE_THRESHOLD = 0.20
+const TRIAL_CONFIDENCE_THRESHOLD = 0.16
 const SUSTAIN_MS = 1200
-const TRIAL_SUSTAIN_MS = 600
+const TRIAL_SUSTAIN_MS = 500
 const FLEE_MS = 1800
 
 export function useClassifier() {
@@ -222,7 +223,10 @@ export function useClassifier() {
       }
 
       const secretScore = Math.max(0, ...SECRET_TRIGGER_LABELS.map((l) => scores[l] ?? 0))
-      const trialScore = scores[TRIAL_TRIGGER_LABEL] ?? 0
+      const trialScore = Math.max(
+        0,
+        ...TRIAL_TRIGGER_ALIASES.map((l) => scores[l] ?? 0),
+      )
 
       const negativeMax = Math.max(
         scores['empty room'] ?? 0,
@@ -273,8 +277,8 @@ export function useClassifier() {
       // Prefer main ghost targets when they clearly win.
       const trialHit =
         trialScore >= TRIAL_CONFIDENCE_THRESHOLD &&
-        trialScore > trialNegativeMax * 0.72 &&
-        (!accepted || trialScore >= bestScore * 1.02)
+        trialScore > trialNegativeMax * 0.65 &&
+        (!accepted || trialScore >= bestScore * 0.98)
 
       const SECRET_CONFIDENCE_THRESHOLD = 0.22
       const secretHit =
@@ -446,8 +450,6 @@ export function useClassifier() {
           t - lastTrialSeenRef.current > FLEE_MS
         ) {
           setSustainedTrial(false)
-    setSustainedSecret(false)
-    setSustainedAmbientScanLabel(null)
         }
       }
 

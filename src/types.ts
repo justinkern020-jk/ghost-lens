@@ -9,6 +9,15 @@ export type TargetType = (typeof TARGET_LABELS)[number]
 export const TRIAL_TRIGGER_LABEL = 'chair' as const
 export type TrialTriggerLabel = typeof TRIAL_TRIGGER_LABEL
 
+/** Softer CLIP aliases for the trial chair haunt (max-scored). */
+export const TRIAL_TRIGGER_ALIASES = [
+  'chair',
+  'rocking chair',
+  'armchair',
+  'seat',
+  'empty chair',
+] as const
+
 /** All spirit kinds including trial echo, mid-boss Warden, and endgame Demon. */
 export type SpiritKind = TargetType | 'trial' | 'boss' | 'demon' | 'secret'
 
@@ -129,6 +138,7 @@ export const CANDIDATE_LABELS = [
   ...SPOOKBOX_MAKER_LABELS,
   ...TARGET_LABELS,
   TRIAL_TRIGGER_LABEL,
+  ...TRIAL_TRIGGER_ALIASES,
   ...PLAYGROUND_LABELS,
   ...STRANGER_SCENE_LABELS,
   ...COLLECTIBLE_SCENE_LABELS,

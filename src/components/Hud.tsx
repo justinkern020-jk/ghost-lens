@@ -8,6 +8,10 @@ interface Props {
   anchored: boolean
   modelReady: boolean
   loadingMsg: string
+  modelError?: string | null
+  /** Dusk gate blocked — scanning intentionally paused. */
+  duskPaused?: boolean
+  onLeaveHunt?: () => void
   captureDisabled: boolean
   onCapture: () => void
   onOpenGallery: () => void
@@ -50,6 +54,9 @@ export function Hud({
   anchored,
   modelReady,
   loadingMsg,
+  modelError = null,
+  duskPaused = false,
+  onLeaveHunt,
   captureDisabled,
   onCapture,
   onOpenGallery,
@@ -78,7 +85,15 @@ export function Hud({
   moonPhaseLabel,
   moonCanSeal = false,
 }: Props) {
-  const pct = Math.round(detection.confidence * 100)
+  const peakRaw = Math.max(
+    detection.confidence,
+    detection.trialConfidence ?? 0,
+    detection.playgroundConfidence ?? 0,
+    detection.secretConfidence ?? 0,
+    detection.strangerConfidence ?? 0,
+    detection.collectibleConfidence ?? 0,
+  )
+  const pct = Math.round(peakRaw * 100)
   const healthPct = Math.round(Math.max(0, Math.min(1, health)) * 100)
   const beatSec = Math.max(0.28, 60 / Math.max(bpm, 40))
   const endgame = !!(isBoss || isDemon || isSecret)
@@ -201,10 +216,20 @@ export function Hud({
       )}
 
       <div className="hud-mid">
-        {!modelReady && loadingMsg && (
-          <div className="status-pill warn">{loadingMsg}</div>
+        {!modelReady && (loadingMsg || !modelError) && (
+          <div className="status-pill warn">
+            {loadingMsg || 'Loading vision…'}
+          </div>
         )}
-        {modelReady && (
+        {modelError && (
+          <div className="status-pill warn">Vision error: {modelError}</div>
+        )}
+        {duskPaused && (
+          <div className="status-pill warn">
+            Dusk gate — scanning paused. Enable Force dusk (test) or return at dusk.
+          </div>
+        )}
+        {modelReady && !duskPaused && (
           <div className="status-pill">
             {isDemon && ghostVisible ? (
               <>
@@ -274,6 +299,15 @@ export function Hud({
       </div>
 
       <div className="hud-bottom">
+        {onLeaveHunt && (
+          <button
+            type="button"
+            className="btn ghost-btn leave-hunt-btn"
+            onClick={onLeaveHunt}
+          >
+            Leave hunt
+          </button>
+        )}
         <button
           type="button"
           className="btn gallery-btn"

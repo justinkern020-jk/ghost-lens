@@ -41,7 +41,11 @@ export function isForceDusk(): boolean {
   if (typeof window === 'undefined') return false
   try {
     const q = new URLSearchParams(window.location.search)
-    if (q.get('forceDusk') === '1' || q.get('forceDusk') === 'true') return true
+    if (q.get('forceDusk') === '1' || q.get('forceDusk') === 'true') {
+      // Keep save flag in sync so UI toggles / reloads stay consistent.
+      if (!getSave().forceDusk) patchSave({ forceDusk: true })
+      return true
+    }
   } catch {
     /* ignore */
   }
