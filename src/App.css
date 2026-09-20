@@ -437,6 +437,33 @@ html, body, #root {
   color: var(--acid-dim);
   background: rgba(0,0,0,0.45);
 }
+/* —— Moon phase indicator (demon seal gate) —— */
+.hud-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.moon-chip {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border: 1px solid #4a5568;
+  color: #a8b4c8;
+  background: rgba(0,0,0,0.5);
+  text-transform: capitalize;
+}
+.moon-chip.moon-full {
+  border-color: #c8d0e0;
+  color: #e8eef8;
+  box-shadow: 0 0 10px rgba(200, 210, 230, 0.35);
+}
+.moon-chip.moon-waning {
+  border-color: #3a4050;
+  color: #7a8498;
+  opacity: 0.9;
+}
+
 .hud-mid { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 8px; }
 .status-pill {
   font-size: 11px;

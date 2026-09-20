@@ -17,6 +17,8 @@ import { Hud } from './components/Hud'
 import { useCamera } from './hooks/useCamera'
 import { useClassifier } from './hooks/useClassifier'
 import { useDuskGate } from './hooks/useDuskGate'
+import { useMoonGate } from './hooks/useMoonGate'
+import { DEMON_SEAL_BLOCKED_COPY } from './moon/moonPhase'
 import { makePolaroidStill } from './inventory/makePolaroid'
 import {
   countOfKind,
@@ -324,6 +326,7 @@ export default function App() {
   const approachSlowUntilRef = useRef(0)
 
   const dusk = useDuskGate()
+  const moon = useMoonGate()
 
   const uniqueSealed = useMemo(
     () => uniqueTargetTypes(captures).size,
@@ -552,7 +555,11 @@ export default function App() {
         meleeEnteredAtRef.current = null
         lastHitAtRef.current = 0
         setItemSpentThisFight(false)
-        setStatusLine('The Empty Seat waits. Burn the photographs into the seal.')
+        setStatusLine(
+          moon.canSeal
+            ? 'The Empty Seat waits. Burn the photographs into the seal.'
+            : "The Empty Seat waits — but it won't take the photograph until the moon is full.",
+        )
       }
     }
   }, [
@@ -566,6 +573,7 @@ export default function App() {
     sustainedPlayground,
     ghostShouldShow,
     forceManifest,
+    moon.canSeal,
   ])
 
   // Force-manifest trial lesser echo for testing
@@ -736,7 +744,11 @@ export default function App() {
         archivistStunnedRef.current = readForceArchivistStun()
         setArchivistStunned(archivistStunnedRef.current)
         if (kind === 'demon') {
-          setStatusLine('The Empty Seat answers. Burn the photographs into the seal.')
+          setStatusLine(
+            moon.canSeal
+              ? 'The Empty Seat answers. Burn the photographs into the seal.'
+              : "The Empty Seat answers — but it won't take the photograph until the moon is full.",
+          )
         } else if (kind === 'boss') {
           setStatusLine('The Threshold Warden answers. Seal it in phases.')
         } else if (kind === 'secret') {
@@ -822,6 +834,7 @@ export default function App() {
     cinematicLock,
     finaleActive,
     epilogueOpen,
+    moon.canSeal,
   ])
 
   // Approach + health + hits tick
@@ -1611,6 +1624,11 @@ export default function App() {
         )
         return
       }
+      // Final seal — Empty Seat requires full moon (true-good-ending path too)
+      if (kind === 'demon' && !moon.canSeal) {
+        setStatusLine(DEMON_SEAL_BLOCKED_COPY)
+        return
+      }
     }
 
     setCapturing(true)
@@ -1970,7 +1988,9 @@ export default function App() {
           : !dusk.allowed
             ? 'LOCKED — DAY'
             : isDemon && demonVisible
-              ? 'PLAYGROUND'
+              ? moon.canSeal
+                ? 'PLAYGROUND · FULL MOON'
+                : 'PLAYGROUND · WANING'
               : isBoss && ghostShouldShow
                 ? 'WARDEN'
                 : isTrial && trialVisible
@@ -2033,6 +2053,8 @@ export default function App() {
                 ? ` · sunset ~${dusk.status.sunsetLabel}`
                 : ''}
               {dusk.forceDusk ? ' · FORCE DUSK' : ''}
+              {' · ' + moon.status.phaseLabel}
+              {moon.forceFullMoon ? ' · FORCE FULL MOON' : ''}
               {forceBoss ? ' · FORCE BOSS' : ''}
               {forcePlayground ? ' · FORCE PLAYGROUND' : ''}
               {forceTrial ? ' · FORCE TRIAL' : ''}
@@ -2044,6 +2066,9 @@ export default function App() {
             </li>
             {!dusk.allowed && (
               <li className="warn">{dusk.status.reason}</li>
+            )}
+            {playgroundUnlocked && !demonDefeated && !moon.canSeal && (
+              <li className="warn">{DEMON_SEAL_BLOCKED_COPY}</li>
             )}
             {dusk.geoPending && <li>Locating for solar dusk…</li>}
           </ul>
@@ -2060,6 +2085,15 @@ export default function App() {
             onClick={() => dusk.toggleForceDusk()}
           >
             {dusk.forceDusk ? 'Force dusk (test): ON' : 'Force dusk (test): OFF'}
+          </button>
+          <button
+            type="button"
+            className={`btn dusk-force-btn ${moon.forceFullMoon ? 'on' : ''}`}
+            onClick={() => moon.toggleForceFullMoon()}
+          >
+            {moon.forceFullMoon
+              ? 'Force full moon (test): ON'
+              : 'Force full moon (test): OFF'}
           </button>
           <button
             type="button"
@@ -2085,8 +2119,9 @@ export default function App() {
             {forceTrial ? 'Force trial (test): ON' : 'Force trial (test): OFF'}
           </button>
           <p className="boot-hint">
-            Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> ·{' '}
-            <code>?forcePlayground=1</code> · <code>?forceTrial=1</code> ·{' '}
+            Dev: <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
+            <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
+            <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
             <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> ·{' '}
             <code>?forceSecretGhost=1</code> · <code>?forceNGPlus=1</code> ·{' '}
@@ -2232,6 +2267,8 @@ export default function App() {
           dusk.allowed
         }
         onArrivePlayground={confirmPlaygroundArrival}
+        moonPhaseLabel={moon.status.phaseLabel}
+        moonCanSeal={moon.canSeal}
       />
       )}
 

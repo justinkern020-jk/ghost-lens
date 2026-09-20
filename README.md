@@ -18,9 +18,9 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 
 **Developer override**
 
-- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` · `?forceArchivistStun=1`
-- Boot screen button: **Force dusk (test)**
-- In-hunt: long-press the title area (~1s)
+- Query: `?forceDusk=1` · `?forceFullMoon=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` · `?forceArchivistStun=1`
+- Boot screen buttons: **Force dusk (test)** · **Force full moon (test)**
+- In-hunt: long-press the title area (~1s) for dusk
 
 ## Polaroid inventory + lore
 
@@ -47,9 +47,20 @@ After the four polaroids are sealed (Warden may be mid-boss before or alongside)
 2. Arrive via CLIP playground labels (*playground, swing set, slide, merry-go-round, sandbox*), the **I’ve arrived at the playground** button, or **`?forcePlayground=1`** / Force playground (test).
 3. **The Empty Seat** (Demon) spawns — playground-tainted, wrong child-scale proportions, swing chains, empty seats (dread, not gore).
 4. Harder than the Warden: faster approach, heavier drain, stronger hits; **5-tap ritual** that burns the four polaroids into the seal (ritual strip UI).
-5. Win: demon polaroid + bleakest lore + Favor. Lose: died of fright.
+5. **Final seal requires a full moon** (local calendar day). The demon can still appear and threaten outside the full moon; intermediate ritual taps still burn photographs — only the finishing **Seal** is blocked with: *“It won't take the photograph until the moon is full.”*
+6. Win: demon polaroid + bleakest lore + Favor. Lose: died of fright.
 
-`forceDusk` still required outside real dusk.
+`forceDusk` still required outside real dusk. `forceFullMoon` (or **Force full moon (test)**) unlocks the demon finish for daytime / off-cycle testing.
+
+### Full moon gate
+
+| | |
+|--|--|
+| **When** | Local device **calendar day** within ~0.9 days of astronomical full (synodic approximation). |
+| **Calc** | Moon age from known new moon **2000-01-06 18:14 UTC**, synodic month **29.530588853** days; evaluate at **local noon**. Illumination ≈ `(1 − cos(2π · age / synodic)) / 2`. Full when age is within **±0.9 days** of `synodic/2`. |
+| **Hunt** | Dusk still gates the camera / AR. Full moon only gates the **Empty Seat final seal** (and thus hell-hands / kept-polaroid true-ending paths). |
+| **UI** | Moon phase chip in the HUD (and boot hunt-hours line). Nothing extra persisted beyond the optional force flag. |
+| **Override** | `?forceFullMoon=1` · localStorage `ghost-lens-force-full-moon=1` · boot **Force full moon (test)** |
 
 ## Hidden collectibles — Lore / Relics
 
@@ -92,7 +103,7 @@ Wrong item in a fight = weak/useless. Prepare a tool in the shop, then **Use** d
 
 1. **Approach** — hesitating advances the entity (WebXR pull + scale; overlay grow + shake).
 2. **Heartbeat = health** — BPM rises; calm drains; melee strikes can kill.
-3. **Capture** — wins if timely; boss 3 seals; demon 5 ritual taps.
+3. **Capture** — wins if timely; boss 3 seals; demon 5 ritual taps (final seal needs full moon).
 4. Tuned so hesitation kills; quick Capture still feels fair (~6s normal / ~4s Warden / ~3.2s Demon).
 
 ## World anchoring
@@ -130,7 +141,7 @@ After the playground Demon is sealed:
    - **Refuse** → portrait leaves; Keller transforms into a stylized uncanny **werewolf**, lunges, and eats you → special death: *Died of fright* / **The hunter takes his due**. No NG+ item.
 3. Hell-hands still consume the demon polaroid on a normal clear (unless true-ending conditions below).
 
-**Dev:** `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · combine with `?forceDusk=1&forcePlayground=1`.
+**Dev:** `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · combine with `?forceDusk=1&forcePlayground=1&forceFullMoon=1`.
 
 ## New Game+ — charm, cipher, secret ghost, Spookbox
 
@@ -143,7 +154,7 @@ Persisted in **localStorage**: NG+ flag, Keller charm, clear count, secret unloc
 | **Secret ghost** | *The Pale Archivist* — NG+ only. Point the lens at a **crypt / mausoleum / ossuary**. **3-seal** fight; the **final seal is blocked** until you activate the **Spookbox** mid-fight, call a protector (ITC minigame), and stun the Archivist. Only way to land the finishing blow. Capturing marks secret unlocked. |
 | **Spookbox Maker** | Mysterious Justin-coded character. Separate UI + portrait `public/portraits/spookbox-maker.png`. Appears only at **dusk** while framing a **radio / toolbox / garage / workshop / electronics / workbench**. Offers a **Spookbox** for **Keller's Silver Charm**. Without the charm: cryptic refusal. |
 | **Spookbox** | Persisted in localStorage. Equip from the Favor strip; on the Archivist’s last seal, **Activate Spookbox** → Call protector → stun VFX → final Capture allowed. |
-| **True good ending** | Requires **clear count ≥ 2** and **secret unlocked**. On the next demon clear, hell-hands are **suppressed** — you **keep the demon polaroid** and can **trade it to Keller** to **cure his lycanthropy**. Peaceful epilogue; no werewolf. |
+| **True good ending** | Requires **clear count ≥ 2** and **secret unlocked**, plus a **full-moon** demon final seal. On that clear, hell-hands are **suppressed** — you **keep the demon polaroid** and can **trade it to Keller** to **cure his lycanthropy**. Peaceful epilogue; no werewolf. |
 
 ### Spookbox Maker — time & place
 
@@ -200,7 +211,7 @@ npx vite --host --https
 4. Optional: wait for a **voice** subtitle; check **Whispers** journal for when/where. Frame candle/cross/etc. for **strangers** → learn which tool for which haunt. Buy tools at the **Undertaker**.
 5. Seal all four types → Warden may appear (3 seals) as mid-boss; status: *Bring the photographs to the playground.*
 6. Go to a night playground (or **I’ve arrived** / `?forcePlayground=1`) with dusk still forced/real.
-7. Demon spawns — tap **Ritual 1/5 … Seal**; polaroids burn in the ritual strip. Win for demon lore.
+7. Demon spawns — tap **Ritual 1/5 …**. The final **Seal** needs a **full moon** (or `?forceFullMoon=1` / **Force full moon (test)**). Polaroids burn in the ritual strip. Win for demon lore.
 
 ```bash
 npm run build

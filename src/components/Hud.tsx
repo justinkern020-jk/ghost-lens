@@ -37,6 +37,9 @@ interface Props {
   ritualPolaroids?: Capture[]
   onArrivePlayground?: () => void
   showArrivePlayground?: boolean
+  /** Moon phase chip (demon seal gate) */
+  moonPhaseLabel?: string
+  moonCanSeal?: boolean
 }
 
 export function Hud({
@@ -72,6 +75,8 @@ export function Hud({
   ritualPolaroids = [],
   onArrivePlayground,
   showArrivePlayground = false,
+  moonPhaseLabel,
+  moonCanSeal = false,
 }: Props) {
   const pct = Math.round(detection.confidence * 100)
   const healthPct = Math.round(Math.max(0, Math.min(1, health)) * 100)
@@ -119,7 +124,26 @@ export function Hud({
           <span className="brand-mark">◈</span>
           <span>GHOST LENS</span>
         </div>
-        <div className="mode-chip">{modeLabel}</div>
+        <div className="hud-top-right">
+          <div className="mode-chip">{modeLabel}</div>
+          {moonPhaseLabel && (
+            <div
+              className={`moon-chip ${moonCanSeal ? 'moon-full' : 'moon-waning'}`}
+              title={
+                moonCanSeal
+                  ? 'Full moon — Empty Seat final seal allowed'
+                  : 'Demon final seal waits for the full moon'
+              }
+            >
+              {moonPhaseLabel}
+              {isDemon && ghostVisible
+                ? moonCanSeal
+                  ? ' · seal ready'
+                  : ' · seal waits'
+                : ''}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="heartbeat-meter" data-critical={critical || undefined}>
@@ -185,6 +209,7 @@ export function Hud({
             {isDemon && ghostVisible ? (
               <>
                 <strong>The Empty Seat</strong> at the playground · burn the photographs
+                {!moonCanSeal ? ' · waits for the full moon' : ''}
               </>
             ) : isBoss && ghostVisible ? (
               <>
