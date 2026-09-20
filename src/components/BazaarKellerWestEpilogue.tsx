@@ -45,8 +45,9 @@ function WestPanel({ src, alt }: PanelProps) {
 }
 
 /**
- * Once-only mid-1800s American West boom-town epilogue after the first true-good
- * clear while NG+ is in play (Keller lycanthropy cure / demon-polaroid trade).
+ * Once-only mid-1800s American West boom-town epilogue after a true-good clear
+ * while NG+ is in play (Keller lycanthropy cure / demon-polaroid trade).
+ * Preferred before Smile when both are due; Smile may chain afterward.
  *
  * Frame: the human holding the phone is the bazaar visitor. Young Keller / the
  * camera origin is fiction the proprietor tells — do not collapse visitor into heir.

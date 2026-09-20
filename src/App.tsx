@@ -299,7 +299,7 @@ export default function App() {
   const [smileEpilogueOpen, setSmileEpilogueOpen] = useState(false)
   const [kellerWestEpilogueOpen, setKellerWestEpilogueOpen] = useState(false)
   const [epilogueRefused, setEpilogueRefused] = useState(false)
-  /** True only on Return (accept) — Keller took the glass; not on true-good trade. */
+  /** True only on Return (accept) — Keller took the glass; cleared / ignored after true-good cure. */
   const [lensReturnedToKeller, setLensReturnedToKeller] = useState(false)
   const [postGame, setPostGame] = useState(false)
   const [cinematicLock, setCinematicLock] = useState(false)
@@ -603,7 +603,7 @@ export default function App() {
   // Force-manifest demon when arrived/forced without needing a spirit target
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
-    if (cinematicLock || finaleActive || epilogueOpen || werewolfActive || smileEpilogueOpen || endCardOpen) return
+    if (cinematicLock || finaleActive || epilogueOpen || werewolfActive || smileEpilogueOpen || kellerWestEpilogueOpen || endCardOpen) return
     if (!playgroundUnlocked || demonDefeated) return
     if (!(forcePlayground || playgroundArrived || sustainedPlayground)) return
     if (ghostShouldShow && activeKindRef.current === 'demon') return
@@ -638,6 +638,7 @@ export default function App() {
     epilogueOpen,
     werewolfActive,
     smileEpilogueOpen,
+    kellerWestEpilogueOpen,
     endCardOpen,
     playgroundUnlocked,
     demonDefeated,
@@ -653,7 +654,7 @@ export default function App() {
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
     if (!forceTrial) return
-    if (finaleActive || epilogueOpen || endCardOpen || smileEpilogueOpen || cinematicLock) return
+    if (finaleActive || epilogueOpen || endCardOpen || smileEpilogueOpen || kellerWestEpilogueOpen || cinematicLock) return
     if (ghostShouldShow && activeKindRef.current === 'trial') return
     if (playgroundUnlocked && !demonDefeated && (forcePlayground || playgroundArrived)) return
     forceTrialManifest()
@@ -690,6 +691,7 @@ export default function App() {
     epilogueOpen,
     endCardOpen,
     smileEpilogueOpen,
+    kellerWestEpilogueOpen,
     cinematicLock,
     playgroundUnlocked,
     demonDefeated,
@@ -720,7 +722,7 @@ export default function App() {
 
   // Dev: skip to Keller epilogue
   useEffect(() => {
-    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen) return
+    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen || kellerWestEpilogueOpen) return
     if (!readForceEpilogue()) return
     try {
       const url = new URL(window.location.href)
@@ -731,7 +733,7 @@ export default function App() {
     }
     setCinematicLock(true)
     setEpilogueOpen(true)
-  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen])
+  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen, kellerWestEpilogueOpen])
 
   // Dev: force werewolf refuse path
   useEffect(() => {
@@ -2157,11 +2159,19 @@ export default function App() {
   const onKellerWestEpilogueComplete = useCallback(() => {
     markKellerWestEndingSeen()
     setKellerWestEpilogueOpen(false)
-    setEndCardOpen(true)
     setPostGame(true)
-    setStatusLine(
-      'The telling ends. Herr Keller first learned the shutter in alkali dust.',
-    )
+    // If West was deferred until a later true-good (count ≥ 2), Smile may also be due.
+    if (shouldPlaySmileEpilogue()) {
+      setSmileEpilogueOpen(true)
+      setStatusLine(
+        'The telling ends. Back in the bazaar, the proprietor has one courtesy left.',
+      )
+    } else {
+      setEndCardOpen(true)
+      setStatusLine(
+        'The telling ends. Herr Keller first learned the shutter in alkali dust.',
+      )
+    }
   }, [])
 
   const onWerewolfComplete = useCallback(() => {
@@ -2643,7 +2653,7 @@ export default function App() {
         equipped={equippedItem}
         onEquip={setEquippedItem}
         postGame={postGame}
-        lensReturned={lensReturnedToKeller}
+        lensReturned={lensReturnedToKeller && !trueGoodEnd}
       />
 
       {activeVoice && (

@@ -58,7 +58,7 @@ export interface GhostLensSave {
   trueGoodEndingCount: number
   /** Bazaar Smile meta epilogue has played (second true-good). */
   smileEndingSeen: boolean
-  /** West Keller origin epilogue has played (first true-good after NG+). */
+  /** West Keller origin epilogue has played (once, after true-good with NG+). */
   kellerWestEndingSeen: boolean
   kellerCharm: boolean
   ngplus: boolean

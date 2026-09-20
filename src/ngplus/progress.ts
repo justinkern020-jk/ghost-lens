@@ -6,7 +6,7 @@
  * trueGoodEnding: traded demon photo to cure Keller’s lycanthropy.
  * trueGoodEndingCount: times that cure/trade path has completed.
  * smileEndingSeen: Bazaar Smile meta epilogue has played.
- * kellerWestEndingSeen: West Keller origin epilogue has played.
+ * kellerWestEndingSeen: West Keller origin epilogue has played (once under NG+).
  */
 
 import { getSave, patchSave } from '../save/gameSave'
@@ -79,16 +79,16 @@ export function markKellerWestEndingSeen(): void {
 }
 
 /**
- * First true-good after NG+ is in play (and not yet seen) → West Keller origin.
- * Does not replace Smile (Smile stays on 2nd true-good via shouldPlaySmileEpilogue).
+ * Once NG+ is in play, the next true-good trade (if West not yet seen) → West Keller origin.
+ * App prefers West before Smile; if both are due (e.g. true-good before NG+, then
+ * a later true-good at count ≥ 2), West plays first and Smile can chain after.
  */
 export function shouldPlayKellerWestEpilogue(): boolean {
   const s = getSave()
   if (s.kellerWestEndingSeen) return false
   // NG+ in play: flag from Return / charm / prior NG+ run
   if (!s.ngplus && !s.kellerCharm) return false
-  // First true-good only — second+ belongs to Smile
-  return (s.trueGoodEndingCount ?? 0) === 1
+  return (s.trueGoodEndingCount ?? 0) >= 1
 }
 
 /** Eligible for kept-demon / trade path on the next demon clear. */

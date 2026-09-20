@@ -13,7 +13,7 @@ interface Props {
   onEquip: (id: OccultItemId | null) => void
   /** Quiet post-hunt after the playground finale. */
   postGame?: boolean
-  /** True only on Return (accept) ending — Keller took the glass. Not set on true-good trade (you keep it). */
+  /** True only on Return (accept) ending — Keller took the glass. Must stay false after true-good cure (you keep it). */
   lensReturned?: boolean
 }
 
