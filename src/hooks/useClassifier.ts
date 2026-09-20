@@ -27,9 +27,9 @@ const PLAYGROUND_CONFIDENCE_THRESHOLD = 0.26
 const STRANGER_CONFIDENCE_THRESHOLD = 0.27
 const COLLECTIBLE_CONFIDENCE_THRESHOLD = 0.26
 /** Trial chair — easier / earlier spawn. */
-const TRIAL_CONFIDENCE_THRESHOLD = 0.24
+const TRIAL_CONFIDENCE_THRESHOLD = 0.20
 const SUSTAIN_MS = 1200
-const TRIAL_SUSTAIN_MS = 750
+const TRIAL_SUSTAIN_MS = 600
 const FLEE_MS = 1800
 
 export function useClassifier() {
@@ -231,6 +231,13 @@ export function useClassifier() {
         scores['person'] ?? 0,
         scores['furniture'] ?? 0,
       )
+      // Chair≈furniture in CLIP — don't let the furniture label kill the trial haunt.
+      const trialNegativeMax = Math.max(
+        scores['empty room'] ?? 0,
+        scores['plain wall'] ?? 0,
+        scores['none of the above'] ?? 0,
+        scores['person'] ?? 0,
+      )
 
       const accepted =
         bestTarget &&
@@ -266,8 +273,8 @@ export function useClassifier() {
       // Prefer main ghost targets when they clearly win.
       const trialHit =
         trialScore >= TRIAL_CONFIDENCE_THRESHOLD &&
-        trialScore > negativeMax * 0.78 &&
-        (!accepted || trialScore >= bestScore * 1.05)
+        trialScore > trialNegativeMax * 0.72 &&
+        (!accepted || trialScore >= bestScore * 1.02)
 
       const SECRET_CONFIDENCE_THRESHOLD = 0.22
       const secretHit =
