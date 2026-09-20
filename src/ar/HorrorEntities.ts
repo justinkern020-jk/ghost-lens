@@ -1,0 +1,404 @@
+import * as THREE from 'three'
+import type { TargetType } from '../types'
+
+/** Uncanny procedural horror meshes — dread over gore. */
+
+function ashMaterial(color: number, opacity = 0.72): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.95,
+    metalness: 0.05,
+    transparent: true,
+    opacity,
+    flatShading: true,
+    depthWrite: false,
+  })
+}
+
+function wetMaterial(color: number, opacity = 0.65): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.25,
+    metalness: 0.35,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  })
+}
+
+function limb(
+  len: number,
+  thick: number,
+  mat: THREE.Material,
+): THREE.Mesh {
+  const geo = new THREE.CylinderGeometry(thick * 0.6, thick, len, 5)
+  const m = new THREE.Mesh(geo, mat)
+  m.geometry.translate(0, -len / 2, 0)
+  return m
+}
+
+/** Tombstone → grave-dirt figure, jaw wrong, cemetery wrongness */
+function buildGraveDirt(): THREE.Group {
+  const g = new THREE.Group()
+  const dirt = ashMaterial(0x3a3428, 0.78)
+  const bone = ashMaterial(0x8a8478, 0.7)
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.1, 1, 1, 1), dirt)
+  torso.position.y = 0.28
+  torso.rotation.z = 0.08
+  g.add(torso)
+
+  // Head too small, jaw offset
+  const skull = new THREE.Mesh(new THREE.DodecahedronGeometry(0.07, 0), bone)
+  skull.position.set(0.02, 0.5, 0.02)
+  skull.scale.set(1, 1.15, 0.85)
+  g.add(skull)
+
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 0.05), bone)
+  jaw.position.set(0.01, 0.44, 0.06)
+  jaw.rotation.x = 0.45
+  jaw.rotation.z = -0.2
+  g.add(jaw)
+
+  // Too-long arms
+  const armL = limb(0.42, 0.025, dirt)
+  armL.position.set(-0.1, 0.38, 0)
+  armL.rotation.z = 0.55
+  armL.rotation.x = 0.3
+  const armR = limb(0.48, 0.022, dirt)
+  armR.position.set(0.1, 0.36, 0)
+  armR.rotation.z = -0.75
+  armR.rotation.x = -0.2
+  g.add(armL, armR)
+
+  // Broken silhouette — shoulder spike of dirt
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 4), dirt)
+  spike.position.set(-0.06, 0.42, -0.02)
+  spike.rotation.z = 0.9
+  g.add(spike)
+
+  // Hollow eye pits (darker)
+  const pitMat = new THREE.MeshBasicMaterial({ color: 0x050403, transparent: true, opacity: 0.9 })
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.015, 6, 6), pitMat)
+  eyeL.position.set(-0.02, 0.52, 0.055)
+  const eyeR = eyeL.clone()
+  eyeR.position.x = 0.045
+  eyeR.scale.set(1.4, 0.7, 1)
+  g.add(eyeL, eyeR)
+
+  g.userData.kind = 'tombstone'
+  return g
+}
+
+/** Ring → intimate/wrong wedding echo, hand-focused, jewelry glint */
+function buildWeddingEcho(): THREE.Group {
+  const g = new THREE.Group()
+  const flesh = ashMaterial(0x6b5a52, 0.75)
+  const pale = ashMaterial(0x9a8e86, 0.7)
+
+  // Oversized hand reaching toward camera
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.18), flesh)
+  palm.position.set(0, 0.22, 0.05)
+  palm.rotation.x = -0.4
+  g.add(palm)
+
+  // Fingers too long, uneven
+  const lengths = [0.16, 0.2, 0.22, 0.18, 0.12]
+  lengths.forEach((len, i) => {
+    const f = limb(len, 0.012 + (i % 2) * 0.004, flesh)
+    f.position.set(-0.055 + i * 0.028, 0.24, 0.12)
+    f.rotation.x = -0.9 - i * 0.05
+    f.rotation.z = (i - 2) * 0.08
+    g.add(f)
+  })
+
+  // Ring glint bait
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.022, 0.005, 8, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 1,
+      roughness: 0.15,
+      emissive: 0x665511,
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0.95,
+    }),
+  )
+  ring.position.set(0.03, 0.28, 0.2)
+  ring.rotation.y = 0.5
+  ring.name = 'ringGlint'
+  g.add(ring)
+
+  // Half-face behind the hand — unresolved
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), pale)
+  face.position.set(0.02, 0.35, -0.06)
+  face.scale.set(0.9, 1.2, 0.5)
+  g.add(face)
+
+  const voidEye = new THREE.Mesh(
+    new THREE.CircleGeometry(0.02, 8),
+    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide }),
+  )
+  voidEye.position.set(0.0, 0.38, -0.02)
+  g.add(voidEye)
+
+  // Veil shreds
+  const veil = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.2, 0.35),
+    new THREE.MeshBasicMaterial({
+      color: 0xe8e0d8,
+      transparent: true,
+      opacity: 0.2,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  veil.position.set(-0.05, 0.4, -0.08)
+  veil.rotation.y = 0.3
+  g.add(veil)
+
+  g.userData.kind = 'ring'
+  return g
+}
+
+/** Doll → porcelain/vacant, jointed wrong, stares through camera */
+function buildPorcelainDoll(): THREE.Group {
+  const g = new THREE.Group()
+  const porcelain = ashMaterial(0xd8cfc4, 0.82)
+  const crack = ashMaterial(0x2a2218, 0.85)
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), porcelain)
+  head.position.y = 0.42
+  head.scale.set(1, 1.1, 0.95)
+  g.add(head)
+
+  // Vacant stares — slightly crossed, too large
+  const iris = new THREE.MeshBasicMaterial({ color: 0x1a3040 })
+  const white = new THREE.MeshBasicMaterial({ color: 0xf5f0ea })
+  ;[-1, 1].forEach((side) => {
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), white)
+    sclera.position.set(side * 0.035, 0.435, 0.07)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), iris)
+    pupil.position.set(side * 0.032, 0.432, 0.09)
+    g.add(sclera, pupil)
+  })
+
+  // Crack across face
+  const crackMesh = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.1, 0.01), crack)
+  crackMesh.position.set(0.01, 0.42, 0.085)
+  crackMesh.rotation.z = 0.3
+  g.add(crackMesh)
+
+  // Painted smile slightly wrong
+  const smile = new THREE.Mesh(
+    new THREE.TorusGeometry(0.025, 0.004, 6, 12, Math.PI),
+    new THREE.MeshBasicMaterial({ color: 0x6a2030 }),
+  )
+  smile.position.set(0, 0.385, 0.08)
+  smile.rotation.x = Math.PI
+  smile.rotation.z = 0.15
+  g.add(smile)
+
+  // Body — jointed wrong (ball joints visible, limbs bent back)
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.18, 6), porcelain)
+  torso.position.y = 0.26
+  g.add(torso)
+
+  const jointMat = ashMaterial(0x4a4038, 0.9)
+  ;[
+    [-0.07, 0.32, 0.35, 0.55],
+    [0.07, 0.32, -0.5, 0.4],
+    [-0.04, 0.16, 0.2, 0.9],
+    [0.04, 0.16, -0.15, -0.7],
+  ].forEach(([x, y, rz, rx], i) => {
+    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), jointMat)
+    joint.position.set(x, y, 0)
+    const arm = limb(i < 2 ? 0.2 : 0.22, 0.018, porcelain)
+    arm.position.copy(joint.position)
+    arm.rotation.z = rz
+    arm.rotation.x = rx
+    g.add(joint, arm)
+  })
+
+  g.userData.kind = 'doll'
+  return g
+}
+
+/** Lake → drowned/pale, waterlogged, hair/weeds, emerges from water plane */
+function buildDrowned(): THREE.Group {
+  const g = new THREE.Group()
+  const pale = wetMaterial(0x7a9a9a, 0.7)
+  const weed = wetMaterial(0x1a3028, 0.8)
+  const water = wetMaterial(0x2a4a55, 0.35)
+
+  // Water plane disc (entity emerges from)
+  const plane = new THREE.Mesh(
+    new THREE.CircleGeometry(0.28, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x1a3040,
+      transparent: true,
+      opacity: 0.45,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  plane.rotation.x = -Math.PI / 2
+  plane.position.y = 0.01
+  plane.name = 'waterPlane'
+  g.add(plane)
+
+  // Ripple ring
+  const ripple = new THREE.Mesh(
+    new THREE.RingGeometry(0.2, 0.26, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x4a7080,
+      transparent: true,
+      opacity: 0.35,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  ripple.rotation.x = -Math.PI / 2
+  ripple.position.y = 0.015
+  ripple.name = 'ripple'
+  g.add(ripple)
+
+  // Torso rising from water — slumped
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.14, 4, 8), pale)
+  torso.position.set(0.01, 0.16, 0)
+  torso.rotation.z = 0.12
+  torso.rotation.x = 0.15
+  g.add(torso)
+
+  // Head — hair hanging as weeds
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), pale)
+  head.position.set(0.02, 0.32, 0.02)
+  head.rotation.x = 0.35
+  g.add(head)
+
+  for (let i = 0; i < 8; i++) {
+    const strand = limb(0.2 + Math.random() * 0.12, 0.006, weed)
+    strand.position.set((Math.random() - 0.5) * 0.1, 0.34, (Math.random() - 0.5) * 0.08)
+    strand.rotation.x = 0.8 + Math.random() * 0.6
+    strand.rotation.z = (Math.random() - 0.5) * 0.8
+    g.add(strand)
+  }
+
+  // One arm reaching up from water, fingers splayed wrong
+  const arm = limb(0.28, 0.02, pale)
+  arm.position.set(-0.08, 0.08, 0.05)
+  arm.rotation.z = 1.1
+  arm.rotation.x = -0.4
+  g.add(arm)
+
+  // Mouth dark slit — no expression
+  const mouth = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.008, 0.01),
+    new THREE.MeshBasicMaterial({ color: 0x0a1214 }),
+  )
+  mouth.position.set(0.02, 0.3, 0.06)
+  g.add(mouth)
+
+  // Soft submerged glow
+  void water
+
+  g.userData.kind = 'lake'
+  return g
+}
+
+export function createHorrorEntity(target: TargetType): THREE.Group {
+  switch (target) {
+    case 'tombstone':
+      return buildGraveDirt()
+    case 'ring':
+      return buildWeddingEcho()
+    case 'doll':
+      return buildPorcelainDoll()
+    case 'lake':
+      return buildDrowned()
+  }
+}
+
+export interface EntityAnimState {
+  aggression: number // 0..1 increases when player hesitates
+  stutterClock: number
+  lastStutter: number
+  frozenUntil: number
+}
+
+export function animateHorrorEntity(
+  group: THREE.Group,
+  state: EntityAnimState,
+  dt: number,
+  elapsed: number,
+): void {
+  state.stutterClock += dt
+  const agg = state.aggression
+
+  // Sudden stillness
+  if (elapsed < state.frozenUntil) {
+    return
+  }
+  if (Math.random() < 0.008 + agg * 0.02) {
+    state.frozenUntil = elapsed + 0.15 + Math.random() * 0.4
+    return
+  }
+
+  // Stutter / snap motion
+  const stutter = state.stutterClock - state.lastStutter > 0.12 + Math.random() * 0.2
+  if (stutter) {
+    state.lastStutter = state.stutterClock
+    const snap = (0.02 + agg * 0.06) * (Math.random() > 0.5 ? 1 : -1)
+    group.rotation.y += snap
+    group.position.x += (Math.random() - 0.5) * 0.01 * (1 + agg)
+  }
+
+  const kind = group.userData.kind as TargetType
+
+  if (kind === 'doll') {
+    // Slow head turn toward "camera" feel + micro jitters
+    group.rotation.y = Math.sin(elapsed * (0.4 + agg)) * (0.15 + agg * 0.35)
+  } else if (kind === 'ring') {
+    const glint = group.getObjectByName('ringGlint')
+    if (glint) {
+      glint.rotation.y = elapsed * 2.5
+      const mat = (glint as THREE.Mesh).material as THREE.MeshStandardMaterial
+      mat.emissiveIntensity = 0.4 + Math.sin(elapsed * 8) * 0.3 + agg * 0.4
+    }
+    // Hand creeps closer with aggression
+    group.position.z = 0.02 * agg
+    group.scale.setScalar(1 + agg * 0.15)
+  } else if (kind === 'lake') {
+    const ripple = group.getObjectByName('ripple')
+    if (ripple) {
+      const s = 1 + Math.sin(elapsed * 1.5) * 0.08 + agg * 0.1
+      ripple.scale.set(s, s, s)
+    }
+    // Rise higher when aggressive
+    group.children.forEach((c) => {
+      if (c.name !== 'waterPlane' && c.name !== 'ripple') {
+        c.position.y += Math.sin(elapsed * 0.8) * 0.0003
+      }
+    })
+    group.position.y = agg * 0.04
+  } else if (kind === 'tombstone') {
+    // Wrong bob — irregular
+    group.position.y = Math.abs(Math.sin(elapsed * 1.1)) * 0.02 + agg * 0.03
+    group.rotation.z = Math.sin(elapsed * 0.7) * 0.05 + (Math.random() - 0.5) * 0.002 * agg
+  }
+
+  // Opacity flicker when aggressive
+  group.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.material && 'opacity' in obj.material) {
+      const m = obj.material as THREE.MeshStandardMaterial
+      if (m.transparent && agg > 0.4 && Math.random() < 0.05) {
+        m.opacity = Math.max(0.25, (m.userData.baseOpacity ?? m.opacity) * (0.5 + Math.random() * 0.5))
+      }
+    }
+  })
+}
+
+export function setEntityAggression(group: THREE.Group, aggression: number): void {
+  group.userData.aggression = aggression
+}

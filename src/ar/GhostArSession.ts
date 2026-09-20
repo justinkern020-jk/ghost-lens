@@ -1,0 +1,389 @@
+import * as THREE from 'three'
+import type { TargetType } from '../types'
+import {
+  animateHorrorEntity,
+  createHorrorEntity,
+  type EntityAnimState,
+} from './HorrorEntities'
+
+export type ArSessionStatus =
+  | 'idle'
+  | 'starting'
+  | 'running'
+  | 'ended'
+  | 'error'
+
+export interface GhostArCallbacks {
+  onStatus?: (s: ArSessionStatus, detail?: string) => void
+  onAnchorPlaced?: (target: TargetType) => void
+  onAnchorLost?: () => void
+}
+
+/**
+ * WebXR immersive-ar with hit-test + anchors.
+ * Horror entity is world-anchored — stays fixed in the scene as the phone moves.
+ */
+export class GhostArSession {
+  private renderer: THREE.WebGLRenderer | null = null
+  private scene: THREE.Scene | null = null
+  private camera: THREE.PerspectiveCamera | null = null
+  private session: XRSession | null = null
+  private refSpace: XRReferenceSpace | null = null
+  private hitTestSource: XRHitTestSource | null = null
+  private viewerSpace: XRReferenceSpace | null = null
+  private entityRoot: THREE.Group | null = null
+  private entity: THREE.Group | null = null
+  private anchor: XRAnchor | null = null
+  private anchored = false
+  private pendingTarget: TargetType | null = null
+  private activeTarget: TargetType | null = null
+  private placeRequested = false
+  private fleeing = false
+  private callbacks: GhostArCallbacks
+  private canvas: HTMLCanvasElement
+  private clock = new THREE.Clock()
+  private lastHitMatrix: THREE.Matrix4 | null = null
+  private animState: EntityAnimState = {
+    aggression: 0,
+    stutterClock: 0,
+    lastStutter: 0,
+    frozenUntil: 0,
+  }
+  private light: THREE.HemisphereLight | null = null
+
+  constructor(canvas: HTMLCanvasElement, callbacks: GhostArCallbacks = {}) {
+    this.canvas = canvas
+    this.callbacks = callbacks
+  }
+
+  static async isSupported(): Promise<boolean> {
+    if (!navigator.xr) return false
+    try {
+      return await navigator.xr.isSessionSupported('immersive-ar')
+    } catch {
+      return false
+    }
+  }
+
+  async start(): Promise<void> {
+    this.callbacks.onStatus?.('starting')
+    if (!navigator.xr) {
+      this.callbacks.onStatus?.('error', 'WebXR not available')
+      throw new Error('WebXR not available')
+    }
+
+    const overlayRoot =
+      document.getElementById('ar-overlay') ?? document.body
+
+    const sessionInit: XRSessionInit = {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['anchors', 'dom-overlay', 'local'],
+      domOverlay: { root: overlayRoot },
+    }
+
+    const session = await navigator.xr.requestSession(
+      'immersive-ar',
+      sessionInit,
+    )
+
+    this.session = session
+    this.scene = new THREE.Scene()
+    this.camera = new THREE.PerspectiveCamera()
+    this.camera.matrixAutoUpdate = false
+
+    this.light = new THREE.HemisphereLight(0x8899aa, 0x221100, 1.1)
+    this.scene.add(this.light)
+    const dir = new THREE.DirectionalLight(0xcbd5d0, 0.4)
+    dir.position.set(1, 2, 0.5)
+    this.scene.add(dir)
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+    })
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false)
+    this.renderer.xr.enabled = true
+    await this.renderer.xr.setSession(session)
+
+    this.entityRoot = new THREE.Group()
+    this.entityRoot.visible = false
+    this.scene.add(this.entityRoot)
+
+    this.refSpace = await session.requestReferenceSpace('local')
+    this.viewerSpace = await session.requestReferenceSpace('viewer')
+
+    if (session.requestHitTestSource && this.viewerSpace) {
+      this.hitTestSource =
+        (await session.requestHitTestSource({ space: this.viewerSpace })) ?? null
+    }
+
+    session.addEventListener('end', () => {
+      this.cleanup()
+      this.callbacks.onStatus?.('ended')
+    })
+
+    this.renderer.setAnimationLoop((_time, frame) => this.onXRFrame(frame))
+    this.callbacks.onStatus?.('running')
+  }
+
+  private spawnEntity(target: TargetType) {
+    if (!this.entityRoot) return
+    if (this.entity) {
+      this.entityRoot.remove(this.entity)
+      this.entity.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose()
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          mats.forEach((m) => m.dispose())
+        }
+      })
+    }
+    this.entity = createHorrorEntity(target)
+    this.activeTarget = target
+    this.entityRoot.add(this.entity)
+    this.animState = {
+      aggression: 0,
+      stutterClock: 0,
+      lastStutter: 0,
+      frozenUntil: 0,
+    }
+  }
+
+  requestPlace(target: TargetType) {
+    if (this.activeTarget !== target || !this.entity) {
+      this.spawnEntity(target)
+    }
+    this.pendingTarget = target
+    this.placeRequested = true
+    this.fleeing = false
+    if (this.entityRoot) this.entityRoot.visible = true
+  }
+
+  setAggression(n: number) {
+    this.animState.aggression = Math.max(0, Math.min(1, n))
+  }
+
+  hideGhost() {
+    this.fleeing = true
+    this.placeRequested = false
+    this.anchored = false
+    this.pendingTarget = null
+    if (this.anchor) {
+      try {
+        this.anchor.delete()
+      } catch {
+        /* ignore */
+      }
+      this.anchor = null
+    }
+    this.callbacks.onAnchorLost?.()
+  }
+
+  get isAnchored() {
+    return this.anchored && !!this.entityRoot?.visible
+  }
+
+  getGhostVisible() {
+    return !!this.entityRoot?.visible && !this.fleeing
+  }
+
+  getActiveTarget() {
+    return this.activeTarget
+  }
+
+  captureStill(): string | null {
+    if (!this.renderer) return null
+    try {
+      return this.canvas.toDataURL('image/jpeg', 0.92)
+    } catch {
+      return null
+    }
+  }
+
+  async end() {
+    if (this.session) {
+      try {
+        await this.session.end()
+      } catch {
+        this.cleanup()
+      }
+    } else {
+      this.cleanup()
+    }
+  }
+
+  private cleanup() {
+    if (this.renderer) this.renderer.setAnimationLoop(null)
+    if (this.hitTestSource) {
+      this.hitTestSource.cancel()
+      this.hitTestSource = null
+    }
+    if (this.anchor) {
+      try {
+        this.anchor.delete()
+      } catch {
+        /* ignore */
+      }
+      this.anchor = null
+    }
+    this.session = null
+    this.anchored = false
+    this.entity = null
+    this.entityRoot = null
+    this.activeTarget = null
+  }
+
+  private applyPoseToRoot(matrix: Float32Array | number[]) {
+    if (!this.entityRoot) return
+    this.entityRoot.matrix.fromArray(matrix)
+    this.entityRoot.matrixAutoUpdate = false
+    this.entityRoot.matrix.decompose(
+      this.entityRoot.position,
+      this.entityRoot.quaternion,
+      this.entityRoot.scale,
+    )
+    // Lake sits on plane; others lift slightly
+    const lift = this.activeTarget === 'lake' ? 0.0 : 0.05
+    this.entityRoot.position.y += lift
+    this.entityRoot.visible = true
+    this.entityRoot.updateMatrix()
+  }
+
+  private onXRFrame(frame: XRFrame | undefined) {
+    if (!this.renderer || !this.scene || !this.camera || !frame || !this.refSpace) {
+      return
+    }
+
+    const dt = Math.min(this.clock.getDelta(), 0.05)
+    const elapsed = this.clock.elapsedTime
+
+    if (this.entity && this.entityRoot?.visible && !this.fleeing) {
+      animateHorrorEntity(this.entity, this.animState, dt, elapsed)
+    }
+
+    if (this.fleeing && this.entityRoot) {
+      this.entityRoot.scale.multiplyScalar(0.92)
+      this.entityRoot.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.material && 'opacity' in o.material) {
+          const m = o.material as THREE.Material & { opacity: number }
+          m.opacity *= 0.88
+        }
+      })
+      if (this.entityRoot.scale.x < 0.05) {
+        this.entityRoot.visible = false
+        this.fleeing = false
+        this.entityRoot.scale.set(1, 1, 1)
+        if (this.entity) {
+          this.entityRoot.remove(this.entity)
+          this.entity = null
+          this.activeTarget = null
+        }
+      }
+    }
+
+    if (this.anchor && this.entityRoot && !this.fleeing) {
+      const pose = frame.getPose(this.anchor.anchorSpace, this.refSpace)
+      if (pose) this.applyPoseToRoot(pose.transform.matrix)
+    } else if (
+      this.anchored &&
+      this.lastHitMatrix &&
+      this.entityRoot &&
+      !this.placeRequested &&
+      !this.fleeing
+    ) {
+      this.entityRoot.matrix.copy(this.lastHitMatrix)
+      this.entityRoot.matrix.decompose(
+        this.entityRoot.position,
+        this.entityRoot.quaternion,
+        this.entityRoot.scale,
+      )
+    }
+
+    if (
+      this.placeRequested &&
+      this.hitTestSource &&
+      this.pendingTarget &&
+      !this.fleeing
+    ) {
+      const hits = frame.getHitTestResults(this.hitTestSource)
+      if (hits.length > 0) {
+        const hit = hits[0]
+        const pose = hit.getPose(this.refSpace)
+        if (pose && this.entityRoot) {
+          this.applyPoseToRoot(pose.transform.matrix)
+          this.lastHitMatrix = this.entityRoot.matrix.clone()
+
+          const createAnchor = (
+            hit as XRHitTestResult & {
+              createAnchor?: (
+                t: XRRigidTransform,
+                space: XRReferenceSpace,
+              ) => Promise<XRAnchor>
+            }
+          ).createAnchor
+
+          if (createAnchor) {
+            createAnchor
+              .call(hit, pose.transform, this.refSpace)
+              .then((a: XRAnchor) => {
+                if (this.anchor) {
+                  try {
+                    this.anchor.delete()
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                this.anchor = a
+                this.anchored = true
+                this.placeRequested = false
+                if (this.pendingTarget) {
+                  this.callbacks.onAnchorPlaced?.(this.pendingTarget)
+                }
+              })
+              .catch(() => {
+                this.anchored = true
+                this.placeRequested = false
+                if (this.pendingTarget) {
+                  this.callbacks.onAnchorPlaced?.(this.pendingTarget)
+                }
+              })
+          } else {
+            this.anchored = true
+            this.placeRequested = false
+            this.callbacks.onAnchorPlaced?.(this.pendingTarget)
+          }
+        }
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera)
+  }
+}
+
+export async function checkWebXrAr(): Promise<{
+  supported: boolean
+  reason?: string
+}> {
+  if (typeof navigator === 'undefined' || !navigator.xr) {
+    return {
+      supported: false,
+      reason: 'WebXR API missing — use Chrome on Android with ARCore.',
+    }
+  }
+  try {
+    const ok = await navigator.xr.isSessionSupported('immersive-ar')
+    if (!ok) {
+      return {
+        supported: false,
+        reason:
+          'immersive-ar not supported. On Pixel: Chrome + Google Play Services for AR (ARCore).',
+      }
+    }
+    return { supported: true }
+  } catch {
+    return { supported: false, reason: 'Could not query WebXR session support.' }
+  }
+}
