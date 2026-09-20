@@ -23,6 +23,7 @@ interface Props {
   stunned?: boolean
   isBoss?: boolean
   isDemon?: boolean
+  isTrial?: boolean
   /** Multi-phase capture progress 0..phases */
   capturePhase?: number
   capturePhases?: number
@@ -58,6 +59,7 @@ export function Hud({
   stunned,
   isBoss,
   isDemon,
+  isTrial = false,
   capturePhase = 0,
   capturePhases = 1,
   uniqueSealed = 0,
@@ -75,7 +77,9 @@ export function Hud({
   const endgame = !!(isBoss || isDemon)
   const critical = health < 0.35 || proximity > 0.85 || endgame
 
-  const captureLabel = isDemon
+  const captureLabel = isTrial
+    ? 'Capture'
+    : isDemon
     ? capturePhase >= capturePhases - 1
       ? 'Seal'
       : `Ritual ${capturePhase + 1}/${capturePhases}`
@@ -89,15 +93,17 @@ export function Hud({
     ? 'DEMON'
     : isBoss
       ? 'WARDEN'
-      : healthPct >= 70
-        ? 'CALM'
-        : healthPct >= 40
-          ? 'ELEVATED'
-          : 'PANIC'
+      : isTrial
+        ? 'TRIAL'
+        : healthPct >= 70
+          ? 'CALM'
+          : healthPct >= 40
+            ? 'ELEVATED'
+            : 'PANIC'
 
   return (
     <div
-      className={`hud ${isBoss ? 'hud-boss' : ''} ${isDemon ? 'hud-demon' : ''}`}
+      className={`hud ${isBoss ? 'hud-boss' : ''} ${isDemon ? 'hud-demon' : ''} ${isTrial ? 'hud-trial' : ''}`}
       id="ar-overlay"
     >
       <div className="hud-top">
@@ -176,12 +182,21 @@ export function Hud({
               <>
                 <strong>Threshold Warden</strong> manifested · seal it in phases
               </>
+            ) : isTrial && ghostVisible ? (
+              <>
+                <strong>The Thin One</strong> · lesser echo · trial · lens alone
+              </>
             ) : detection.label ? (
               <>
                 Sensing <strong>{detection.label}</strong> · {pct}%
                 {!sustained && detection.label && ' · holding…'}
                 {sustained && ghostVisible && anchored && ' · anchored'}
                 {sustained && ghostVisible && !anchored && ' · manifested'}
+              </>
+            ) : detection.trialLabel ? (
+              <>
+                Sensing <strong>{detection.trialLabel}</strong> · trial / lesser echo
+                {isTrial && ghostVisible ? ' · manifested' : ' · holding…'}
               </>
             ) : detection.playgroundLabel ? (
               <>
@@ -190,7 +205,7 @@ export function Hud({
               </>
             ) : (
               <>
-                Scanning for tombstone · ring · doll · lake · {pct}% peak
+                Scanning for tombstone · ring · doll · lake · chair (trial) · {pct}% peak
                 {bossUnlocked ? ' · warden unlocked' : ''}
                 {playgroundUnlocked && !demonDefeated ? ' · playground unlocked' : ''}
               </>

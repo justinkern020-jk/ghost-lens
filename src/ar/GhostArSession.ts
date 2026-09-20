@@ -5,6 +5,10 @@ import {
   createHorrorEntity,
   type EntityAnimState,
 } from './HorrorEntities'
+import {
+  createDemonFinaleScene,
+  type FinaleSceneHandle,
+} from './DemonFinaleScene'
 
 export type ArSessionStatus =
   | 'idle'
@@ -56,6 +60,8 @@ export class GhostArSession {
   private tmpCamPos = new THREE.Vector3()
   private tmpAnchorPos = new THREE.Vector3()
   private tmpDir = new THREE.Vector3()
+  private finale: FinaleSceneHandle | null = null
+  private finalePlaying = false
 
   constructor(canvas: HTMLCanvasElement, callbacks: GhostArCallbacks = {}) {
     this.canvas = canvas
@@ -182,6 +188,65 @@ export class GhostArSession {
     this.proximity = Math.max(0, Math.min(1, n))
   }
 
+  /**
+   * Climactic endgame at the last anchor / hit pose:
+   * polaroid falls, ground opens, hell hands drag it under.
+   */
+  playDemonFinale(
+    polaroidDataUrl: string | null,
+    onPhase?: (name: string) => void,
+    onComplete?: () => void,
+  ) {
+    if (!this.scene) {
+      onComplete?.()
+      return
+    }
+    // Hide living entity; keep root pose for ground
+    if (this.entity && this.approachOffset) {
+      this.approachOffset.remove(this.entity)
+      this.entity = null
+    }
+    this.fleeing = false
+    this.placeRequested = false
+    this.proximity = 0
+    if (this.approachOffset) {
+      this.approachOffset.position.set(0, 0, 0)
+      this.approachOffset.scale.set(1, 1, 1)
+    }
+    if (this.finale) {
+      this.scene.remove(this.finale.root)
+      this.finale.dispose()
+      this.finale = null
+    }
+    const handle = createDemonFinaleScene(polaroidDataUrl, (phase) => {
+      onPhase?.(phase)
+      if (phase === 'done') {
+        this.finalePlaying = false
+        if (this.finale && this.scene) {
+          this.scene.remove(this.finale.root)
+          this.finale.dispose()
+          this.finale = null
+        }
+        if (this.entityRoot) this.entityRoot.visible = false
+        onComplete?.()
+      }
+    })
+    // Parent under entityRoot so it inherits world anchor
+    if (this.entityRoot) {
+      this.entityRoot.visible = true
+      this.entityRoot.add(handle.root)
+    } else {
+      this.scene.add(handle.root)
+    }
+    this.finale = handle
+    this.finalePlaying = true
+    this.activeTarget = null
+  }
+
+  get isFinalePlaying() {
+    return this.finalePlaying
+  }
+
   hideGhost() {
     this.fleeing = true
     this.placeRequested = false
@@ -256,6 +321,11 @@ export class GhostArSession {
     this.approachOffset = null
     this.entityRoot = null
     this.activeTarget = null
+    if (this.finale) {
+      this.finale.dispose()
+      this.finale = null
+    }
+    this.finalePlaying = false
   }
 
   private applyPoseToRoot(matrix: Float32Array | number[]) {
@@ -328,7 +398,11 @@ export class GhostArSession {
     const dt = Math.min(this.clock.getDelta(), 0.05)
     const elapsed = this.clock.elapsedTime
 
-    if (this.entity && this.entityRoot?.visible && !this.fleeing) {
+    if (this.finalePlaying && this.finale) {
+      this.finale.update(dt, elapsed)
+    }
+
+    if (this.entity && this.entityRoot?.visible && !this.fleeing && !this.finalePlaying) {
       animateHorrorEntity(this.entity, this.animState, dt, elapsed)
       this.applyApproach(frame)
     }

@@ -44,6 +44,15 @@ const BANKS: Record<SpiritKind, LoreBank> = {
       'People throw stones to see how deep. You threw a shutter. Depth is a rumor now. I am surface forever, and the surface is your pocket, your screen, your guilt.',
     ],
   },
+  trial: {
+    name: 'The Thin One',
+    epithet: 'lesser echo · chair-bound · practice haunt',
+    trapped: [
+      'I was barely here — a smear of sitting, a hollow in the air above a chair. Your lens did not need salt or iron. Paper holds me the way a napkin holds a stain. Still: I am a stain that watches.',
+      'They call me trial. I call myself almost. Almost a hunger. Almost a name. The chair remembers weight; I remember the click. Keep me with the real ones if you like. I will not unlock their doors.',
+      'Lighter dread, same grain. I lean in the emulsion the way a guest leans in a borrowed seat — polite, wrong, temporary. Learn the Capture on me. The thicker ones do not wait this long.',
+    ],
+  },
   boss: {
     name: 'The Threshold Warden',
     epithet: 'all four hungers · one frame',

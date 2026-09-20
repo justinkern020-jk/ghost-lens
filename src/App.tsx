@@ -51,6 +51,12 @@ import { UndertakerCounter } from './shop/UndertakerCounter'
 import { StrangerVignette } from './components/StrangerVignette'
 import { WhisperJournal } from './components/WhisperJournal'
 import { RelicsJournal } from './components/RelicsJournal'
+import { DemonFinale } from './components/DemonFinale'
+import {
+  EpilogueStranger,
+  EndTitleCard,
+  type EpilogueChoice,
+} from './components/EpilogueStranger'
 import {
   loadHeardVoiceHints,
   pickVoiceHint,
@@ -68,6 +74,7 @@ import {
   BOSS_UNLOCK_UNIQUE,
   capturePhasesFor,
   isMultiSealKind,
+  TRIAL_TRIGGER_LABEL,
   type ArMode,
   type Capture,
   type SpiritKind,
@@ -117,6 +124,34 @@ function readForceVoiceHint(): string | null {
   }
 }
 
+function readForceTrial(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('forceTrial') === '1') return true
+    return localStorage.getItem('ghost-lens-force-trial') === '1'
+  } catch {
+    return false
+  }
+}
+
+function readForceDemonWin(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('forceDemonWin') === '1'
+  } catch {
+    return false
+  }
+}
+
+function readForceEpilogue(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('forceEpilogue') === '1'
+  } catch {
+    return false
+  }
+}
+
 function readForceStranger(): string | null {
   try {
     const q = new URLSearchParams(window.location.search)
@@ -148,7 +183,24 @@ export default function App() {
   const [started, setStarted] = useState(false)
   const [forceBoss, setForceBoss] = useState(readForceBoss)
   const [forcePlayground, setForcePlayground] = useState(readForcePlayground)
+  const [forceTrial, setForceTrial] = useState(readForceTrial)
   const [playgroundArrived, setPlaygroundArrived] = useState(false)
+  const [finaleActive, setFinaleActive] = useState(false)
+  const [finalePolaroidUrl, setFinalePolaroidUrl] = useState<string | null>(null)
+  const [epilogueOpen, setEpilogueOpen] = useState(false)
+  const [endCardOpen, setEndCardOpen] = useState(false)
+  const [epilogueRefused, setEpilogueRefused] = useState(false)
+  const [postGame, setPostGame] = useState(false)
+  const [cinematicLock, setCinematicLock] = useState(false)
+  const trialOnboardedRef = useRef(
+    (() => {
+      try {
+        return localStorage.getItem('ghost-lens-trial-onboarded') === '1'
+      } catch {
+        return false
+      }
+    })(),
+  )
   const [activeKind, setActiveKind] = useState<SpiritKind | null>(null)
   const [capturePhase, setCapturePhase] = useState(0)
   const [capturing, setCapturing] = useState(false)
@@ -254,9 +306,11 @@ export default function App() {
     sustainedPlayground,
     sustainedStrangerLabel,
     sustainedCollectibleLabel,
+    sustainedTrial,
     classifyFrame,
     resetGhost,
     forceManifest,
+    forceTrialManifest,
     clearSustainedStranger,
     clearSustainedCollectible,
   } = useClassifier()
@@ -360,7 +414,7 @@ export default function App() {
   }, [dusk.allowed, started, arRunning, resetGhost, dusk.status.reason])
 
   const resolveEncounterKind = useCallback(
-    (detected: TargetType | null): SpiritKind | null => {
+    (detected: TargetType | null, trial = false): SpiritKind | null => {
       // Endgame demon takes priority when at playground and unlocked
       if (
         playgroundUnlocked &&
@@ -369,8 +423,11 @@ export default function App() {
       ) {
         return 'demon'
       }
+      // Main targets can become Warden; trial never upgrades to boss
       if (detected && bossUnlocked && !bossDefeated) return 'boss'
-      return detected
+      if (detected) return detected
+      if (trial || forceTrial) return 'trial'
+      return null
     },
     [
       playgroundUnlocked,
@@ -380,6 +437,7 @@ export default function App() {
       sustainedPlayground,
       bossUnlocked,
       bossDefeated,
+      forceTrial,
     ],
   )
 
@@ -420,6 +478,89 @@ export default function App() {
     forceManifest,
   ])
 
+  // Force-manifest trial lesser echo for testing
+  useEffect(() => {
+    if (!started || dead || !dusk.allowed) return
+    if (!forceTrial) return
+    if (finaleActive || epilogueOpen || endCardOpen || cinematicLock) return
+    if (ghostShouldShow && activeKindRef.current === 'trial') return
+    if (playgroundUnlocked && !demonDefeated && (forcePlayground || playgroundArrived)) return
+    forceTrialManifest()
+    if (appearAtRef.current === null || activeKindRef.current !== 'trial') {
+      appearAtRef.current = performance.now()
+      setActiveKind('trial')
+      setAggression(0)
+      setProximity(0)
+      setCapturePhase(0)
+      capturePhaseRef.current = 0
+      meleeEnteredAtRef.current = null
+      lastHitAtRef.current = 0
+      setItemSpentThisFight(false)
+      if (!trialOnboardedRef.current) {
+        trialOnboardedRef.current = true
+        try {
+          localStorage.setItem('ghost-lens-trial-onboarded', '1')
+        } catch {
+          /* ignore */
+        }
+        setStatusLine('A thin one. The lens alone will hold it.')
+      } else {
+        setStatusLine('Lesser echo — trial. Capture with the lens alone.')
+      }
+    }
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    forceTrial,
+    forceTrialManifest,
+    ghostShouldShow,
+    finaleActive,
+    epilogueOpen,
+    endCardOpen,
+    cinematicLock,
+    playgroundUnlocked,
+    demonDefeated,
+    forcePlayground,
+    playgroundArrived,
+  ])
+
+  // Dev: skip fight and play finale cinematic only
+  useEffect(() => {
+    if (!started || finaleActive || epilogueOpen) return
+    if (!readForceDemonWin()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceDemonWin')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setCinematicLock(true)
+    setFinalePolaroidUrl(null)
+    setFinaleActive(true)
+    void audioRef.current.ensure().then(() => audioRef.current.playDemonFinale())
+    if (arRunning && arSessionRef.current) {
+      arSessionRef.current.playDemonFinale(null)
+    }
+    setStatusLine('Force demon win — finale.')
+  }, [started, finaleActive, epilogueOpen, arRunning])
+
+  // Dev: skip to Keller epilogue
+  useEffect(() => {
+    if (!started || epilogueOpen || endCardOpen) return
+    if (!readForceEpilogue()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceEpilogue')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setCinematicLock(true)
+    setEpilogueOpen(true)
+  }, [started, epilogueOpen, endCardOpen])
+
   // Manifest / flee
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
@@ -429,14 +570,18 @@ export default function App() {
       !demonDefeated &&
       (forcePlayground || playgroundArrived || sustainedPlayground)
 
+    if (cinematicLock || finaleActive || epilogueOpen) return
+
     const show =
       ghostShouldShow ||
+      sustainedTrial ||
+      forceTrial ||
       (demonSite && (forcePlayground || playgroundArrived) && activeKindRef.current === 'demon')
 
-    if (show && (sustainedTarget || demonSite)) {
+    if (show && (sustainedTarget || sustainedTrial || forceTrial || demonSite)) {
       setFleeing(false)
       const kind =
-        resolveEncounterKind(sustainedTarget) ??
+        resolveEncounterKind(sustainedTarget, sustainedTrial || forceTrial) ??
         (demonSite ? 'demon' : null)
       if (!kind) return
 
@@ -462,6 +607,18 @@ export default function App() {
           setStatusLine('The Empty Seat answers. Burn the photographs into the seal.')
         } else if (kind === 'boss') {
           setStatusLine('The Threshold Warden answers. Seal it in phases.')
+        } else if (kind === 'trial') {
+          if (!trialOnboardedRef.current) {
+            trialOnboardedRef.current = true
+            try {
+              localStorage.setItem('ghost-lens-trial-onboarded', '1')
+            } catch {
+              /* ignore */
+            }
+            setStatusLine('A thin one. The lens alone will hold it.')
+          } else {
+            setStatusLine('Lesser echo — trial. The lens alone will hold it.')
+          }
         }
       }
 
@@ -471,6 +628,8 @@ export default function App() {
           placedForRef.current = kind
           if (kind === 'demon') {
             setStatusLine('Anchoring on the playground ground…')
+          } else if (kind === 'trial') {
+            setStatusLine(`Something thin near the ${TRIAL_TRIGGER_LABEL}…`)
           } else if (kind !== 'boss') {
             setStatusLine(`Something wrong near the ${sustainedTarget}…`)
           }
@@ -506,6 +665,8 @@ export default function App() {
   }, [
     ghostShouldShow,
     sustainedTarget,
+    sustainedTrial,
+    forceTrial,
     arRunning,
     aggression,
     proximity,
@@ -522,15 +683,21 @@ export default function App() {
     playgroundArrived,
     sustainedPlayground,
     atPlayground,
+    cinematicLock,
+    finaleActive,
+    epilogueOpen,
   ])
 
   // Approach + health + hits tick
   useEffect(() => {
     const kindNow = activeKindRef.current
     const showing =
-      ghostShouldShow ||
-      (kindNow === 'demon' &&
-        (forcePlayground || playgroundArrived || sustainedPlayground))
+      !cinematicLock &&
+      (ghostShouldShow ||
+        sustainedTrial ||
+        forceTrial ||
+        (kindNow === 'demon' &&
+          (forcePlayground || playgroundArrived || sustainedPlayground)))
 
     if (!showing || !appearAtRef.current || dead || !dusk.allowed) {
       if (!showing) {
@@ -579,7 +746,9 @@ export default function App() {
               ? 'Empty seats — keep the ritual!'
               : kind === 'boss'
                 ? 'The Warden is on you — keep sealing!'
-                : 'It’s on you — Capture!',
+                : kind === 'trial'
+                  ? 'Thin — but still Capture.'
+                  : 'It’s on you — Capture!',
           )
         }
         const hushActive = now < hushUntilRef.current
@@ -648,12 +817,15 @@ export default function App() {
     return () => clearInterval(id)
   }, [
     ghostShouldShow,
+    sustainedTrial,
+    forceTrial,
     dead,
     dusk.allowed,
     resetGhost,
     forcePlayground,
     playgroundArrived,
     sustainedPlayground,
+    cinematicLock,
   ])
 
   // Announce unlocks
@@ -886,7 +1058,7 @@ export default function App() {
     setActiveClue(null)
   }
 
-    const startExperience = async () => {
+  const startExperience = async () => {
     setStarted(true)
     await audioRef.current.ensure()
   }
@@ -1022,6 +1194,7 @@ export default function App() {
       loreVariant: lorePick.variant,
       isBoss: kind === 'boss',
       isDemon: kind === 'demon',
+      isTrial: kind === 'trial',
     }
     setCaptures((c) => [cap, ...c])
 
@@ -1031,10 +1204,12 @@ export default function App() {
     const profile = tensionFor(kind)
     setStatusLine(
       kind === 'demon'
-        ? `Sealed: ${lorePick.name}. The playground goes quiet. (+${earned} Favor)`
+        ? `Sealed: ${lorePick.name}. The ground remembers. (+${earned} Favor)`
         : kind === 'boss'
           ? `Sealed: ${lorePick.name}. The threshold goes quiet. (+${earned} Favor)`
-          : `Polaroid sealed — ${lorePick.name}. (+${earned} Favor)`,
+          : kind === 'trial'
+            ? `Trial sealed — ${lorePick.name}. Lesser echo. (+${earned} Favor)`
+            : `Polaroid sealed — ${lorePick.name}. (+${earned} Favor)`,
     )
     appearAtRef.current = null
     meleeEnteredAtRef.current = null
@@ -1052,7 +1227,7 @@ export default function App() {
     audioRef.current.setPresence(false, 0)
     audioRef.current.setHeartbeat(56, false)
 
-    if (kind !== 'boss' && kind !== 'demon') {
+    if (kind !== 'boss' && kind !== 'demon' && kind !== 'trial') {
       const nextUnique = uniqueTargetTypes([cap, ...captures]).size
       if (nextUnique >= BOSS_UNLOCK_UNIQUE && !hasBossCapture([cap, ...captures])) {
         window.setTimeout(() => {
@@ -1068,16 +1243,30 @@ export default function App() {
         }, 2200)
       }
     }
+
+    // Big endgame climax after demon seal
+    if (kind === 'demon') {
+      setCinematicLock(true)
+      setFinalePolaroidUrl(polaroidUrl)
+      setFinaleActive(true)
+      void audioRef.current.ensure().then(() => audioRef.current.playDemonFinale())
+      if (arRunning && arSessionRef.current) {
+        arSessionRef.current.playDemonFinale(polaroidUrl)
+      }
+    }
   }
 
   const capture = () => {
+    if (cinematicLock || finaleActive || epilogueOpen) return
     const kind = activeKindRef.current
     const demonShowing =
       kind === 'demon' &&
       (forcePlayground || playgroundArrived || sustainedPlayground || ghostShouldShow)
+    const trialShowing =
+      kind === 'trial' && (sustainedTrial || forceTrial || ghostShouldShow)
     if (
-      (!sustainedTarget && !demonShowing) ||
-      (!ghostShouldShow && !demonShowing) ||
+      (!sustainedTarget && !demonShowing && !trialShowing) ||
+      (!ghostShouldShow && !demonShowing && !trialShowing) ||
       dead ||
       !dusk.allowed ||
       capturing
@@ -1269,6 +1458,54 @@ export default function App() {
     )
   }
 
+  
+  const toggleForceTrial = () => {
+    const next = !forceTrial
+    setForceTrial(next)
+    try {
+      localStorage.setItem('ghost-lens-force-trial', next ? '1' : '0')
+      const url = new URL(window.location.href)
+      if (next) url.searchParams.set('forceTrial', '1')
+      else url.searchParams.delete('forceTrial')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setStatusLine(
+      next
+        ? 'Force trial ON — lesser echo will manifest (chair).'
+        : 'Force trial OFF.',
+    )
+  }
+
+  const onFinaleComplete = useCallback(() => {
+    setFinaleActive(false)
+    setEpilogueOpen(true)
+    setStatusLine('')
+  }, [])
+
+  const onEpilogueResolved = useCallback((choice: EpilogueChoice) => {
+    setEpilogueOpen(false)
+    setEpilogueRefused(choice === 'refuse')
+    setEndCardOpen(true)
+    setPostGame(true)
+    setStatusLine(
+      choice === 'refuse'
+        ? 'Herr Keller tips his hat. The lens stays cold in your hands.'
+        : 'Herr Keller takes the glass. The polaroids remain.',
+    )
+  }, [])
+
+  const dismissEndCard = useCallback(() => {
+    setEndCardOpen(false)
+    setCinematicLock(false)
+    setStatusLine(
+      epilogueRefused
+        ? 'Post-hunt quiet. The Undertaker will have opinions.'
+        : 'Post-hunt quiet. The lens is gone. The photographs stay.',
+    )
+  }, [epilogueRefused])
+
   const confirmPlaygroundArrival = () => {
     setPlaygroundArrived(true)
     setStatusLine('You have arrived. The Empty Seat is listening.')
@@ -1317,25 +1554,34 @@ export default function App() {
 
   const isBoss = activeKind === 'boss'
   const isDemon = activeKind === 'demon'
+  const isTrial = activeKind === 'trial'
   const phases = capturePhasesFor(activeKind)
   const demonVisible =
     isDemon &&
     (ghostShouldShow || forcePlayground || playgroundArrived || sustainedPlayground)
+  const trialVisible =
+    isTrial && (ghostShouldShow || sustainedTrial || forceTrial)
 
   const modeLabel =
     arMode === 'checking'
       ? 'PROBING…'
-      : !dusk.allowed
-        ? 'LOCKED — DAY'
-        : isDemon && demonVisible
-          ? 'PLAYGROUND'
-          : isBoss && ghostShouldShow
-            ? 'WARDEN'
-            : arRunning
-              ? 'WEBXR ANCHORED'
-              : arMode === 'webxr'
-                ? 'WEBXR READY'
-                : 'OVERLAY FALLBACK'
+      : cinematicLock || finaleActive
+        ? 'FINALE'
+        : epilogueOpen
+          ? 'EPILOGUE'
+          : !dusk.allowed
+            ? 'LOCKED — DAY'
+            : isDemon && demonVisible
+              ? 'PLAYGROUND'
+              : isBoss && ghostShouldShow
+                ? 'WARDEN'
+                : isTrial && trialVisible
+                  ? 'TRIAL'
+                  : arRunning
+                    ? 'WEBXR ANCHORED'
+                    : arMode === 'webxr'
+                      ? 'WEBXR READY'
+                      : 'OVERLAY FALLBACK'
 
   if (!started) {
     return (
@@ -1345,12 +1591,12 @@ export default function App() {
           <h1>GHOST LENS</h1>
           <p className="boot-blurb">
             Point the rear camera at a <em>tombstone</em>, <em>ring</em>,{' '}
-            <em>doll</em>, or <em>lake</em>. Hold the frame. Something may
-            stand where it shouldn’t. Capture it into a polaroid before it
-            closes the distance — hesitate, and you may die of fright. Seal
-            all four to wake the <em>Threshold Warden</em>, then bring the
-            photographs to the <em>playground</em> for what waits on empty seats.
-            Spend Favor at <em>The Undertaker&apos;s Counter</em>.
+            <em>doll</em>, or <em>lake</em> — or a <em>chair</em> for a thin
+            trial echo the lens alone can hold. Capture into a polaroid before
+            it closes the distance. Seal all four to wake the{' '}
+            <em>Threshold Warden</em>, then bring the photographs to the{' '}
+            <em>playground</em>. Spend Favor at{' '}
+            <em>The Undertaker&apos;s Counter</em>.
           </p>
           <ul className="boot-list">
             <li>
@@ -1389,6 +1635,8 @@ export default function App() {
               {dusk.forceDusk ? ' · FORCE DUSK' : ''}
               {forceBoss ? ' · FORCE BOSS' : ''}
               {forcePlayground ? ' · FORCE PLAYGROUND' : ''}
+              {forceTrial ? ' · FORCE TRIAL' : ''}
+              {postGame ? ' · POST-HUNT' : ''}
             </li>
             {!dusk.allowed && (
               <li className="warn">{dusk.status.reason}</li>
@@ -1425,10 +1673,18 @@ export default function App() {
               ? 'Force playground (test): ON'
               : 'Force playground (test): OFF'}
           </button>
+          <button
+            type="button"
+            className={`btn dusk-force-btn ${forceTrial ? 'on' : ''}`}
+            onClick={toggleForceTrial}
+          >
+            {forceTrial ? 'Force trial (test): ON' : 'Force trial (test): OFF'}
+          </button>
           <p className="boot-hint">
             Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> ·{' '}
-            <code>?forcePlayground=1</code> · <code>?forceStranger=1</code> · <code>?forceVoiceHint=1</code> ·
-            long-press title in-hunt for dusk.
+            <code>?forcePlayground=1</code> · <code>?forceTrial=1</code> ·{' '}
+            <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
+            <code>?forceStranger=1</code> · long-press title for dusk.
           </p>
           {modelError && <p className="warn">{modelError}</p>}
         </div>
@@ -1438,7 +1694,7 @@ export default function App() {
 
   return (
     <div
-      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''}`}
+      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''} ${isTrial ? 'app-trial' : ''} ${cinematicLock ? 'app-cinematic' : ''} ${postGame ? 'app-postgame' : ''}`}
     >
       <canvas
         ref={xrCanvasRef}
@@ -1468,7 +1724,7 @@ export default function App() {
           videoRefAttach={camera.attach}
           videoReady={camera.ready}
           ghostVisible={
-            ghostShouldShow || fleeing || demonVisible
+            !cinematicLock && (ghostShouldShow || fleeing || demonVisible || trialVisible)
           }
           ghostTarget={activeKind ?? sustainedTarget ?? lastTargetRef.current}
           fleeing={fleeing}
@@ -1478,11 +1734,12 @@ export default function App() {
           stunned={stunned}
           isBoss={isBoss}
           isDemon={isDemon}
+          isTrial={isTrial}
           onVideoEl={onVideoEl}
         />
       )}
 
-      {arRunning && (ghostShouldShow || demonVisible) && (
+      {arRunning && !cinematicLock && (ghostShouldShow || demonVisible || trialVisible) && (
         <div
           className={`ar-threat-flash ${isBoss ? 'boss-flash' : ''} ${isDemon ? 'demon-flash' : ''}`}
           style={{
@@ -1494,18 +1751,31 @@ export default function App() {
       )}
       {arRunning && hitFlash && <div className="hit-overlay ar-hit" aria-hidden />}
 
+      <DemonFinale
+        active={finaleActive}
+        polaroidUrl={finalePolaroidUrl}
+        onComplete={onFinaleComplete}
+      />
+      <EpilogueStranger open={epilogueOpen} onResolved={onEpilogueResolved} />
+      <EndTitleCard
+        open={endCardOpen}
+        refused={epilogueRefused}
+        onDismiss={dismissEndCard}
+      />
+
+      {!cinematicLock && (
       <Hud
         modeLabel={modeLabel}
         detection={detection}
         sustained={sustainedTarget}
-        ghostVisible={ghostShouldShow || demonVisible}
+        ghostVisible={ghostShouldShow || demonVisible || trialVisible}
         anchored={anchored}
         modelReady={modelReady}
         loadingMsg={loadingMsg}
         captureDisabled={
           !dusk.allowed ||
-          !(ghostShouldShow || demonVisible) ||
-          (!sustainedTarget && !demonVisible) ||
+          !(ghostShouldShow || demonVisible || trialVisible) ||
+          (!sustainedTarget && !demonVisible && !trialVisible) ||
           dead ||
           capturing
         }
@@ -1529,6 +1799,7 @@ export default function App() {
         stunned={stunned}
         isBoss={isBoss && (ghostShouldShow || false)}
         isDemon={demonVisible}
+        isTrial={trialVisible}
         capturePhase={capturePhase}
         capturePhases={phases}
         uniqueSealed={uniqueSealed}
@@ -1545,8 +1816,10 @@ export default function App() {
         }
         onArrivePlayground={confirmPlaygroundArrival}
       />
+      )}
 
       {/* Favor + shop + tool use strip */}
+      {!cinematicLock && (
       <div className="favor-strip">
         <button
           type="button"
@@ -1579,7 +1852,9 @@ export default function App() {
           </button>
         )}
       </div>
+      )}
 
+      {!cinematicLock && (
       <button
         type="button"
         className="brand-longpress"
@@ -1589,6 +1864,7 @@ export default function App() {
         onPointerLeave={onBrandPointerUp}
         onContextMenu={(e) => e.preventDefault()}
       />
+      )}
 
       <Gallery
         captures={captures}
@@ -1609,6 +1885,8 @@ export default function App() {
         onBuy={buyItem}
         equipped={equippedItem}
         onEquip={setEquippedItem}
+        postGame={postGame}
+        lensReturned={postGame && !epilogueRefused}
       />
 
       {activeVoice && (

@@ -1,8 +1,15 @@
 export const TARGET_LABELS = ['tombstone', 'ring', 'doll', 'lake'] as const
 export type TargetType = (typeof TARGET_LABELS)[number]
 
-/** All spirit kinds including mid-boss Warden and endgame Demon. */
-export type SpiritKind = TargetType | 'boss' | 'demon'
+/**
+ * Trial / tutorial lesser echo — common CLIP prop, camera-only capture.
+ * Not one of the four main seals.
+ */
+export const TRIAL_TRIGGER_LABEL = 'chair' as const
+export type TrialTriggerLabel = typeof TRIAL_TRIGGER_LABEL
+
+/** All spirit kinds including trial echo, mid-boss Warden, and endgame Demon. */
+export type SpiritKind = TargetType | 'trial' | 'boss' | 'demon'
 
 /** CLIP labels that suggest a playground scene (endgame location). */
 export const PLAYGROUND_LABELS = [
@@ -63,6 +70,7 @@ export const COLLECTIBLE_SCENE_LABELS = [
 
 export const CANDIDATE_LABELS = [
   ...TARGET_LABELS,
+  TRIAL_TRIGGER_LABEL,
   ...PLAYGROUND_LABELS,
   ...STRANGER_SCENE_LABELS,
   ...COLLECTIBLE_SCENE_LABELS,
@@ -85,6 +93,9 @@ export interface DetectionResult {
   strangerConfidence?: number
   collectibleLabel?: string | null
   collectibleConfidence?: number
+  /** Trial / lesser-echo prop (chair). */
+  trialLabel?: TrialTriggerLabel | null
+  trialConfidence?: number
 }
 
 export interface SpiritLore {
@@ -108,6 +119,8 @@ export interface Capture {
   loreVariant: number
   isBoss?: boolean
   isDemon?: boolean
+  /** Tutorial lesser echo — not a main seal. */
+  isTrial?: boolean
 }
 
 export type ArMode = 'checking' | 'webxr' | 'fallback' | 'unsupported'
@@ -131,6 +144,15 @@ export const DEMON_CAPTURE_PHASES = 5
 
 export function isMultiSealKind(kind: SpiritKind | null): kind is 'boss' | 'demon' {
   return kind === 'boss' || kind === 'demon'
+}
+
+export function isTrialKind(kind: SpiritKind | null): kind is 'trial' {
+  return kind === 'trial'
+}
+
+/** Main-seal types only (excludes trial / boss / demon). */
+export function isMainSealTarget(kind: string | null | undefined): kind is TargetType {
+  return !!kind && (TARGET_LABELS as readonly string[]).includes(kind)
 }
 
 export function capturePhasesFor(kind: SpiritKind | null): number {

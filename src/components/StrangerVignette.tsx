@@ -1,11 +1,19 @@
 import type { StrangerClue } from '../shop/strangerClues'
+import {
+  PortraitFrame,
+  strangerPortraitAliases,
+  strangerPortraitKey,
+} from './PortraitFrame'
 
 interface Props {
   clue: StrangerClue | null
   onDismiss: () => void
 }
 
-/** Period vignette — mysterious stranger whisper, not a quest log. */
+/**
+ * Separate UI panel — mysterious stranger whisper.
+ * Portrait slot for AI art; not an AR person in the camera world.
+ */
 export function StrangerVignette({ clue, onDismiss }: Props) {
   if (!clue) return null
 
@@ -18,12 +26,14 @@ export function StrangerVignette({ clue, onDismiss }: Props) {
     >
       <article className="stranger-card" onClick={(e) => e.stopPropagation()}>
         <p className="stranger-kicker">A STRANGER DRAWS NEAR</p>
-        <div className="stranger-silhouette" aria-hidden>
-          <div className="str-hat" />
-          <div className="str-head" />
-          <div className="str-coat" />
-        </div>
-        <h3>{clue.stranger}</h3>
+        <PortraitFrame
+          srcKey={strangerPortraitKey(clue.id)}
+          altKeys={strangerPortraitAliases(clue.id)}
+          nameplate={clue.stranger}
+          kicker="Edge-walker · not the shop"
+          size="md"
+          className="stranger-portrait-slot"
+        />
         <blockquote className="stranger-whisper">&ldquo;{clue.whisper}&rdquo;</blockquote>
         <p className="stranger-aside">They are already gone. The words stay.</p>
         <button type="button" className="btn ghost-btn" onClick={onDismiss}>

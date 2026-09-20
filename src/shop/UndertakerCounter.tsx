@@ -1,3 +1,4 @@
+import { PortraitFrame } from '../components/PortraitFrame'
 import { OCCULT_CATALOG, type OccultItemId, type OccultItemDef } from './favorStore'
 
 interface Props {
@@ -9,35 +10,12 @@ interface Props {
   /** Equipped / ready-to-use item for next fight (optional). */
   equipped: OccultItemId | null
   onEquip: (id: OccultItemId | null) => void
+  /** Quiet post-hunt after the playground finale. */
+  postGame?: boolean
+  /** True if Herr Keller took the lens back. */
+  lensReturned?: boolean
 }
 
-/** Period portrait — 1800s undertaker (CSS figure, not neon RPG). */
-function UndertakerPortrait() {
-  return (
-    <div className="undertaker-portrait" aria-hidden>
-      <div className="ut-frame">
-        <div className="ut-figure">
-          <div className="ut-hat" />
-          <div className="ut-head">
-            <span className="ut-eye e-l" />
-            <span className="ut-eye e-r" />
-            <span className="ut-smile" />
-          </div>
-          <div className="ut-collar" />
-          <div className="ut-coat">
-            <span className="ut-lapel l" />
-            <span className="ut-lapel r" />
-            <span className="ut-buttons" />
-          </div>
-          <div className="ut-measure">
-            <span className="ut-tape" />
-          </div>
-        </div>
-        <p className="ut-caption">The Proprietor · est. mourning</p>
-      </div>
-    </div>
-  )
-}
 
 function ItemRow({
   item,
@@ -96,6 +74,8 @@ export function UndertakerCounter({
   onBuy,
   equipped,
   onEquip,
+  postGame = false,
+  lensReturned = false,
 }: Props) {
   if (!open) return null
 
@@ -116,7 +96,20 @@ export function UndertakerCounter({
       </header>
 
       <div className="undertaker-body">
-        <UndertakerPortrait />
+        <PortraitFrame
+          srcKey="undertaker"
+          nameplate="The Undertaker"
+          kicker="Proprietor · est. mourning"
+          size="lg"
+          className="ut-portrait-slot"
+        />
+        {postGame && (
+          <p className="ut-farewell">
+            {lensReturned
+              ? '“The glass has gone home with the Austrian. You keep the paper. That is a fair division of grief.”'
+              : '“You kept the lens. Bold. The Austrian will walk far in those shoes. I sell measures, not advice — but I would sleep lightly.”'}
+          </p>
+        )}
         <div className="undertaker-copy">
           <p className="ut-greeting">
             Good evening. The dead do not haggle, and neither do I. Bring Favor earned from

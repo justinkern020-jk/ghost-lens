@@ -18,7 +18,7 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 
 **Developer override**
 
-- Query: `?forceDusk=1`
+- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1`
 - Boot screen button: **Force dusk (test)**
 - In-hunt: long-press the title area (~1s)
 
@@ -104,7 +104,43 @@ Wrong item in a fight = weak/useless. Prepare a tool in the shop, then **Use** d
 
 ## Vision
 
-On-device **CLIP** via `@xenova/transformers` (`Xenova/clip-vit-base-patch32`). Labels include the four triggers, playground scene, stranger props, and negatives. Inference ~every 700ms; sustain ~1.2s to spawn; ~1.8s without a hit and it flees.
+On-device **CLIP** via `@xenova/transformers` (`Xenova/clip-vit-base-patch32`). Labels include the four triggers, trial **chair**, playground scene, stranger props, and negatives. Inference ~every 700ms; sustain ~1.2s to spawn; ~1.8s without a hit and it flees.
+
+
+## Trial ghost — The Thin One
+
+First-catch **lesser echo** for onboarding:
+
+| | |
+|--|--|
+| **Trigger** | CLIP **`chair`** (common, reliable) |
+| **Capture** | Camera only — **1-tap Capture**, no shop item, no multi-seal |
+| **Tension** | Slower approach (~11s), gentler calm drain, longer window |
+| **Progress** | Does **not** count toward the four main seals / playground unlock; awards bonus Favor only |
+| **Onboarding** (once) | *“A thin one. The lens alone will hold it.”* |
+| **Dev** | `?forceTrial=1` or boot **Force trial (test)** |
+
+## Endgame climax — hell hands + Herr Keller
+
+After the playground Demon is sealed:
+
+1. **Finale cinematic** (AR world-anchored if WebXR; screen-space overlay otherwise): demon polaroid drops → ground fissure opens → hell hands pull the photo under → crack seals → silence. Controls/HUD lock for the full beat.
+2. **Epilogue screen** — **Herr Keller** (Austrian Van Helsing–type) congratulates the hunt, then asks for **his camera back** (Ghost Lens was his instrument). **Return the lens** / **Refuse** (colder line).
+3. **THE END** title card → quiet post-game (polaroids remain; Undertaker has a farewell line).
+
+**Dev:** `?forceDemonWin=1` (finale only) · `?forceEpilogue=1` (Keller screen) · combine with `?forceDusk=1&forcePlayground=1` as needed.
+
+## Portrait slots (UI panels)
+
+Undertaker shop, mysterious strangers, and Herr Keller are **separate UI screens** — not photoreal AR people. Drop AI art into `public/portraits/`:
+
+| File | Panel |
+|------|--------|
+| `undertaker.png` | Shop |
+| `stranger-{clueId}.png` | Stranger vignettes |
+| `herr-keller.png` | Epilogue |
+
+Missing files show a labeled silhouette placeholder with the expected path. Ghosts / demon / hell-hands stay in the AR/camera layer.
 
 ## Stack
 

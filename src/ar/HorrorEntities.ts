@@ -573,6 +573,51 @@ function buildPlaygroundDemon(): THREE.Group {
   return g
 }
 
+
+/** Chair → thin trial echo — faint sitting shape, practice haunt. */
+function buildTrialEcho(): THREE.Group {
+  const g = new THREE.Group()
+  const mist = ashMaterial(0x5a6258, 0.42)
+  const pale = ashMaterial(0x9aa89a, 0.38)
+
+  // Soft seated smear — smaller / thinner than main haunts
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.14), mist)
+  seat.position.y = 0.12
+  g.add(seat)
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.06), mist)
+  torso.position.set(0, 0.26, -0.02)
+  torso.rotation.x = -0.12
+  g.add(torso)
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), pale)
+  head.position.set(0.01, 0.4, 0)
+  head.scale.set(0.85, 1.05, 0.75)
+  g.add(head)
+
+  const pitMat = new THREE.MeshBasicMaterial({
+    color: 0x0a100c,
+    transparent: true,
+    opacity: 0.55,
+  })
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.01, 5, 5), pitMat)
+  eyeL.position.set(-0.015, 0.41, 0.035)
+  const eyeR = eyeL.clone()
+  eyeR.position.x = 0.025
+  g.add(eyeL, eyeR)
+
+  // One thin arm resting on the "chair"
+  const arm = limb(0.22, 0.012, mist)
+  arm.position.set(0.06, 0.28, 0.02)
+  arm.rotation.z = -1.1
+  arm.rotation.x = 0.35
+  g.add(arm)
+
+  g.scale.setScalar(0.85)
+  g.userData.kind = 'trial'
+  return g
+}
+
 export function createHorrorEntity(target: SpiritKind): THREE.Group {
   switch (target) {
     case 'tombstone':
@@ -583,6 +628,8 @@ export function createHorrorEntity(target: SpiritKind): THREE.Group {
       return buildPorcelainDoll()
     case 'lake':
       return buildDrowned()
+    case 'trial':
+      return buildTrialEcho()
     case 'boss':
       return buildThresholdWarden()
     case 'demon':
@@ -656,6 +703,11 @@ export function animateHorrorEntity(
     // Wrong bob — irregular
     group.position.y = Math.abs(Math.sin(elapsed * 1.1)) * 0.02 + agg * 0.03
     group.rotation.z = Math.sin(elapsed * 0.7) * 0.05 + (Math.random() - 0.5) * 0.002 * agg
+  } else if (kind === 'trial') {
+    // Soft sway — barely there
+    group.position.y = Math.sin(elapsed * 0.6) * 0.008 + agg * 0.015
+    group.rotation.y = Math.sin(elapsed * 0.35) * 0.08
+    group.scale.setScalar(0.85 + agg * 0.06)
   } else if (kind === 'boss') {
     const glint = group.getObjectByName('ringGlint')
     if (glint) {

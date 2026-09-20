@@ -35,7 +35,15 @@ export function savePolaroids(captures: Capture[]): void {
 export function uniqueTargetTypes(captures: Capture[]): Set<string> {
   const s = new Set<string>()
   for (const c of captures) {
-    if (c.target !== 'boss' && c.target !== 'demon') s.add(c.target)
+    // Trial / lesser echo does not count toward the four main seals
+    if (
+      c.target !== 'boss' &&
+      c.target !== 'demon' &&
+      c.target !== 'trial' &&
+      !c.isTrial
+    ) {
+      s.add(c.target)
+    }
   }
   return s
 }

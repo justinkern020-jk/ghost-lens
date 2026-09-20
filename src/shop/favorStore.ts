@@ -85,6 +85,8 @@ const OWNED_KEY = 'ghost-lens-undertaker-owned-v1'
 export function favorForCapture(kind: string): number {
   if (kind === 'demon') return 8
   if (kind === 'boss') return 5
+  // Trial lesser echo: bonus Favor only (does not advance main seals)
+  if (kind === 'trial') return 1
   return 1
 }
 

@@ -316,6 +316,120 @@ export class DreadAudio {
     }
   }
 
+  /**
+   * Endgame climax bed: soil/crack, wet grip, reverse choir wash, then hollow silence.
+   * Call once when the finale begins; phases are timed internally (~15s).
+   */
+  playDemonFinale() {
+    if (!this.ctx || !this.master) return
+    void this.ensure().then(() => {
+      if (!this.ctx || !this.master) return
+      const ctx = this.ctx
+      const master = this.master
+      const t0 = ctx.currentTime
+
+      this.setHeartbeat(0, false)
+      this.aggression = 0.15
+      master.gain.cancelScheduledValues(t0)
+      master.gain.linearRampToValueAtTime(0.16, t0 + 0.3)
+
+      // Soil / crack rumble
+      const rumble = ctx.createOscillator()
+      rumble.type = 'sine'
+      rumble.frequency.value = 28
+      const rg = ctx.createGain()
+      rg.gain.value = 0.0001
+      rumble.connect(rg)
+      rg.connect(master)
+      rg.gain.exponentialRampToValueAtTime(0.1, t0 + 0.4)
+      rg.gain.exponentialRampToValueAtTime(0.04, t0 + 2.5)
+      rg.gain.exponentialRampToValueAtTime(0.0001, t0 + 4.5)
+      rumble.frequency.linearRampToValueAtTime(22, t0 + 4)
+      rumble.start(t0)
+      rumble.stop(t0 + 4.6)
+
+      // Crack noise burst
+      const crackAt = t0 + 1.5
+      const noise = ctx.createBufferSource()
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.9, ctx.sampleRate)
+      const data = buf.getChannelData(0)
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.25))
+      }
+      noise.buffer = buf
+      const ng = ctx.createGain()
+      ng.gain.value = 0.0001
+      const nf = ctx.createBiquadFilter()
+      nf.type = 'bandpass'
+      nf.frequency.value = 180
+      nf.Q.value = 0.7
+      noise.connect(nf)
+      nf.connect(ng)
+      ng.connect(master)
+      ng.gain.exponentialRampToValueAtTime(0.14, crackAt + 0.05)
+      ng.gain.exponentialRampToValueAtTime(0.0001, crackAt + 0.85)
+      noise.start(crackAt)
+      noise.stop(crackAt + 0.9)
+
+      // Wet grip — sticky clicks as hands seize the photo
+      for (let i = 0; i < 6; i++) {
+        const at = t0 + 3.2 + i * 0.28
+        const o = ctx.createOscillator()
+        o.type = 'square'
+        o.frequency.value = 90 + Math.random() * 60
+        const g = ctx.createGain()
+        g.gain.value = 0.0001
+        const f = ctx.createBiquadFilter()
+        f.type = 'bandpass'
+        f.frequency.value = 600 + Math.random() * 400
+        f.Q.value = 5
+        o.connect(f)
+        f.connect(g)
+        g.connect(master)
+        g.gain.exponentialRampToValueAtTime(0.07, at + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.09)
+        o.start(at)
+        o.stop(at + 0.1)
+      }
+
+      // Reverse choir wash (detuned formants sweeping down)
+      const choirAt = t0 + 5.5
+      for (const [freq, vol] of [
+        [220, 0.04],
+        [330, 0.032],
+        [440, 0.025],
+        [165, 0.035],
+      ] as const) {
+        const o = ctx.createOscillator()
+        o.type = 'sawtooth'
+        o.frequency.value = freq * 1.35
+        const g = ctx.createGain()
+        g.gain.value = 0.0001
+        const f = ctx.createBiquadFilter()
+        f.type = 'bandpass'
+        f.frequency.value = freq
+        f.Q.value = 7
+        o.connect(f)
+        f.connect(g)
+        g.connect(master)
+        g.gain.exponentialRampToValueAtTime(vol, choirAt + 0.4)
+        g.gain.exponentialRampToValueAtTime(0.0001, choirAt + 3.2)
+        o.frequency.exponentialRampToValueAtTime(freq * 0.55, choirAt + 3.0)
+        o.start(choirAt)
+        o.stop(choirAt + 3.3)
+      }
+
+      // Hollow silence bed — near-nothing after the pull
+      const silenceAt = t0 + 9.0
+      master.gain.linearRampToValueAtTime(0.035, silenceAt)
+      master.gain.linearRampToValueAtTime(0.02, silenceAt + 4)
+
+      if (this.drone) {
+        this.drone.frequency.setTargetAtTime(32, silenceAt, 1.2)
+      }
+    })
+  }
+
   stop() {
     if (this.clickTimer) clearTimeout(this.clickTimer)
     if (this.voiceTimer) clearTimeout(this.voiceTimer)

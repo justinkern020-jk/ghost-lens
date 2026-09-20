@@ -5,9 +5,11 @@ import {
   COLLECTIBLE_SCENE_LABELS,
   STRANGER_SCENE_LABELS,
   TARGET_LABELS,
+  TRIAL_TRIGGER_LABEL,
   type DetectionResult,
   type PlaygroundLabel,
   type TargetType,
+  type TrialTriggerLabel,
 } from '../types'
 
 type ClassifierFn = (
@@ -21,7 +23,10 @@ const CONFIDENCE_THRESHOLD = 0.28
 const PLAYGROUND_CONFIDENCE_THRESHOLD = 0.26
 const STRANGER_CONFIDENCE_THRESHOLD = 0.27
 const COLLECTIBLE_CONFIDENCE_THRESHOLD = 0.26
+/** Trial chair — easier / earlier spawn. */
+const TRIAL_CONFIDENCE_THRESHOLD = 0.24
 const SUSTAIN_MS = 1200
+const TRIAL_SUSTAIN_MS = 750
 const FLEE_MS = 1800
 
 export function useClassifier() {
@@ -38,6 +43,8 @@ export function useClassifier() {
     strangerConfidence: 0,
     collectibleLabel: null,
     collectibleConfidence: 0,
+    trialLabel: null,
+    trialConfidence: 0,
   })
   const [sustainedTarget, setSustainedTarget] = useState<TargetType | null>(null)
   const [ghostShouldShow, setGhostShouldShow] = useState(false)
@@ -49,6 +56,7 @@ export function useClassifier() {
   const [sustainedCollectibleLabel, setSustainedCollectibleLabel] = useState<
     string | null
   >(null)
+  const [sustainedTrial, setSustainedTrial] = useState(false)
 
   const classifierRef = useRef<ClassifierFn | null>(null)
   const busyRef = useRef(false)
@@ -64,6 +72,8 @@ export function useClassifier() {
   const collectibleSustainRef = useRef<number | null>(null)
   const collectibleCandidateRef = useRef<string | null>(null)
   const lastCollectibleSeenRef = useRef<number | null>(null)
+  const trialSustainRef = useRef<number | null>(null)
+  const lastTrialSeenRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -166,6 +176,8 @@ export function useClassifier() {
         }
       }
 
+      const trialScore = scores[TRIAL_TRIGGER_LABEL] ?? 0
+
       const negativeMax = Math.max(
         scores['empty room'] ?? 0,
         scores['plain wall'] ?? 0,
@@ -196,8 +208,18 @@ export function useClassifier() {
         bestCollectibleScore >= COLLECTIBLE_CONFIDENCE_THRESHOLD &&
         bestCollectibleScore > negativeMax * 0.85
 
+      // Trial chair: easier threshold; furniture is a near-neighbor so loosen veto.
+      // Prefer main ghost targets when they clearly win.
+      const trialHit =
+        trialScore >= TRIAL_CONFIDENCE_THRESHOLD &&
+        trialScore > negativeMax * 0.78 &&
+        (!accepted || trialScore >= bestScore * 1.05)
+
       const label = accepted ? bestTarget : null
       const confidence = accepted ? bestScore : bestScore
+      const trialLabel: TrialTriggerLabel | null = trialHit
+        ? TRIAL_TRIGGER_LABEL
+        : null
 
       setDetection({
         label,
@@ -209,6 +231,8 @@ export function useClassifier() {
         strangerConfidence: bestStrangerScore,
         collectibleLabel: collectibleHit ? bestCollectible : null,
         collectibleConfidence: bestCollectibleScore,
+        trialLabel,
+        trialConfidence: trialScore,
       })
       setPlaygroundDetected(!!playgroundHit)
 
@@ -279,6 +303,25 @@ export function useClassifier() {
         }
       }
 
+      if (trialHit) {
+        lastTrialSeenRef.current = t
+        if (!trialSustainRef.current) trialSustainRef.current = t
+        if (
+          trialSustainRef.current &&
+          t - trialSustainRef.current >= TRIAL_SUSTAIN_MS
+        ) {
+          setSustainedTrial(true)
+        }
+      } else {
+        trialSustainRef.current = null
+        if (
+          lastTrialSeenRef.current &&
+          t - lastTrialSeenRef.current > FLEE_MS
+        ) {
+          setSustainedTrial(false)
+        }
+      }
+
       if (label) {
         lastSeenRef.current = t
         if (currentCandidateRef.current !== label) {
@@ -311,12 +354,20 @@ export function useClassifier() {
   const resetGhost = useCallback(() => {
     setGhostShouldShow(false)
     setSustainedTarget(null)
+    setSustainedTrial(false)
     sustainStartRef.current = null
     currentCandidateRef.current = null
     lastSeenRef.current = null
+    trialSustainRef.current = null
+    lastTrialSeenRef.current = null
   }, [])
 
   const forceManifest = useCallback(() => {
+    setGhostShouldShow(true)
+  }, [])
+
+  const forceTrialManifest = useCallback(() => {
+    setSustainedTrial(true)
     setGhostShouldShow(true)
   }, [])
 
@@ -343,9 +394,11 @@ export function useClassifier() {
     sustainedPlayground,
     sustainedStrangerLabel,
     sustainedCollectibleLabel,
+    sustainedTrial,
     classifyFrame,
     resetGhost,
     forceManifest,
+    forceTrialManifest,
     clearSustainedStranger,
     clearSustainedCollectible,
   }

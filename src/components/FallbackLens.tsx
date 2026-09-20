@@ -14,6 +14,7 @@ interface Props {
   stunned?: boolean
   isBoss?: boolean
   isDemon?: boolean
+  isTrial?: boolean
   onVideoEl: (el: HTMLVideoElement | null) => void
 }
 
@@ -30,6 +31,7 @@ export function FallbackLens({
   stunned,
   isBoss,
   isDemon,
+  isTrial,
   onVideoEl,
 }: Props) {
   const videoEl = useRef<HTMLVideoElement | null>(null)
@@ -39,8 +41,10 @@ export function FallbackLens({
   }, [onVideoEl, videoReady])
 
   const endgame = !!(isBoss || isDemon)
-  const growBase = isDemon ? 1.35 : isBoss ? 1.25 : 1
-  const grow = growBase + proximity * (isDemon ? 2.7 : isBoss ? 2.35 : 1.85)
+  const growBase = isDemon ? 1.35 : isBoss ? 1.25 : isTrial ? 0.85 : 1
+  const grow =
+    growBase +
+    proximity * (isDemon ? 2.7 : isBoss ? 2.35 : isTrial ? 1.15 : 1.85)
   const shakeX =
     proximity > 0.55
       ? Math.sin(performance.now() / (isDemon ? 22 : isBoss ? 28 : 40)) *
@@ -65,7 +69,7 @@ export function FallbackLens({
 
   return (
     <div
-      className={`lens-stage fallback ${proximity > 0.7 ? 'shaking' : ''} ${hitFlash ? 'hit-flash' : ''} ${stunned ? 'stunned' : ''} ${isBoss ? 'boss-stage' : ''} ${isDemon ? 'demon-stage' : ''}`}
+      className={`lens-stage fallback ${proximity > 0.7 ? 'shaking' : ''} ${hitFlash ? 'hit-flash' : ''} ${stunned ? 'stunned' : ''} ${isBoss ? 'boss-stage' : ''} ${isDemon ? 'demon-stage' : ''} ${isTrial ? 'trial-stage' : ''}`}
       style={aggStyle}
     >
       <video
@@ -84,7 +88,7 @@ export function FallbackLens({
 
       {ghostVisible && ghostTarget && (
         <div
-          className={`horror-entity ${fleeing ? 'fleeing' : ''} ${isBoss ? 'boss-entity' : ''} ${isDemon ? 'demon-entity' : ''} agg-${Math.min(5, Math.floor(aggression * 5))} prox-${Math.min(5, Math.floor(proximity * 5))}`}
+          className={`horror-entity ${fleeing ? 'fleeing' : ''} ${isBoss ? 'boss-entity' : ''} ${isDemon ? 'demon-entity' : ''} ${isTrial ? 'trial-entity' : ''} agg-${Math.min(5, Math.floor(aggression * 5))} prox-${Math.min(5, Math.floor(proximity * 5))}`}
           data-target={ghostTarget}
           style={{
             transform: fleeing
@@ -96,6 +100,7 @@ export function FallbackLens({
           {ghostTarget === 'ring' && <WeddingEchoEntity />}
           {ghostTarget === 'doll' && <PorcelainDollEntity />}
           {ghostTarget === 'lake' && <DrownedEntity />}
+          {ghostTarget === 'trial' && <TrialEchoEntity />}
           {ghostTarget === 'boss' && <ThresholdWardenEntity />}
           {ghostTarget === 'demon' && <PlaygroundDemonEntity />}
         </div>
@@ -180,6 +185,22 @@ function DrownedEntity() {
         <span className="weed w4" />
       </div>
       <div className="reach-arm" />
+    </div>
+  )
+}
+
+function TrialEchoEntity() {
+  return (
+    <div className="ent trial">
+      <div className="trial-chair" />
+      <div className="trial-seat-hollow" />
+      <div className="trial-torso" />
+      <div className="trial-head">
+        <span className="pit p-l" />
+        <span className="pit p-r" />
+      </div>
+      <div className="trial-arm" />
+      <div className="trial-mist" />
     </div>
   )
 }

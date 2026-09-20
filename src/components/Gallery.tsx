@@ -55,7 +55,7 @@ export function Gallery({
             <li key={c.id}>
               <button
                 type="button"
-                className={`polaroid-card ${c.isBoss || c.target === 'boss' ? 'boss-polaroid' : ''} ${c.isDemon || c.target === 'demon' ? 'demon-polaroid' : ''}`}
+                className={`polaroid-card ${c.isBoss || c.target === 'boss' ? 'boss-polaroid' : ''} ${c.isDemon || c.target === 'demon' ? 'demon-polaroid' : ''} ${c.isTrial || c.target === 'trial' ? 'trial-polaroid' : ''}`}
                 style={{ ['--tilt' as string]: `${((i * 7) % 11) - 5}deg` }}
                 onClick={() => setSelected(c)}
               >
@@ -75,7 +75,7 @@ export function Gallery({
           onClick={() => setSelected(null)}
         >
           <article
-            className={`lore-card ${selected.isBoss || selected.target === 'boss' ? 'boss-lore' : ''} ${selected.isDemon || selected.target === 'demon' ? 'demon-lore' : ''}`}
+            className={`lore-card ${selected.isBoss || selected.target === 'boss' ? 'boss-lore' : ''} ${selected.isDemon || selected.target === 'demon' ? 'demon-lore' : ''} ${selected.isTrial || selected.target === 'trial' ? 'trial-lore' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             <img
@@ -89,7 +89,9 @@ export function Gallery({
                   ? 'DEMON SEALED'
                   : selected.isBoss || selected.target === 'boss'
                     ? 'BOSS SEALED'
-                    : selected.target.toUpperCase()}
+                    : selected.isTrial || selected.target === 'trial'
+                      ? 'TRIAL · LESSER ECHO'
+                      : selected.target.toUpperCase()}
                 {' · '}
                 {new Date(selected.timestamp).toLocaleString(undefined, {
                   month: 'short',
