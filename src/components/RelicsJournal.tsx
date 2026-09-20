@@ -31,6 +31,21 @@ const GHOST_TITLE: Record<SpiritKind, string> = {
   secret: 'Pale Archivist',
 }
 
+/**
+ * Cabals haunt bestiary art under /ghost-cards/{key}.png
+ * boss → warden, secret → archivist; others match SpiritKind.
+ */
+const GHOST_CARD_KEY: Record<SpiritKind, string> = {
+  tombstone: 'tombstone',
+  ring: 'ring',
+  doll: 'doll',
+  lake: 'lake',
+  trial: 'trial',
+  boss: 'warden',
+  demon: 'demon',
+  secret: 'archivist',
+}
+
 function RelicImage({ imageKey, title }: { imageKey: string; title: string }) {
   const [failed, setFailed] = useState(false)
   if (failed) return null
@@ -42,6 +57,24 @@ function RelicImage({ imageKey, title }: { imageKey: string; title: string }) {
       loading="lazy"
       onError={() => setFailed(true)}
     />
+  )
+}
+
+function HauntBestiaryCard({ kind, title }: { kind: SpiritKind; title: string }) {
+  const [failed, setFailed] = useState(false)
+  const cardKey = GHOST_CARD_KEY[kind]
+  if (failed) return null
+  return (
+    <figure className="rj-haunt-card">
+      <img
+        className="rj-haunt-card-art"
+        src={`/ghost-cards/${cardKey}.png`}
+        alt={`${title} — Cabals haunt card`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+      <figcaption className="rj-haunt-card-cap">Bestiary · {cardKey}</figcaption>
+    </figure>
   )
 }
 
@@ -80,6 +113,7 @@ export function RelicsJournal({ open, onClose, unlockedIds }: Props) {
                 {GHOST_TITLE[ghost]}{' '}
                 <span className="rj-ghost-tag">{ghost}</span>
               </h3>
+              <HauntBestiaryCard kind={ghost} title={GHOST_TITLE[ghost]} />
               <ul className="rj-list">
                 {scraps.map((c: LoreCollectible) => (
                   <li key={c.id} className="rj-entry">

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { PortraitFrame } from '../components/PortraitFrame'
 import { OCCULT_CATALOG, type OccultItemId, type OccultItemDef } from './favorStore'
 
@@ -16,6 +17,19 @@ interface Props {
   lensReturned?: boolean
 }
 
+function ShopCardArt({ imageKey, name }: { imageKey: string; name: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return (
+    <img
+      className="ut-item-art"
+      src={`/shop-cards/${imageKey}.png`}
+      alt={name}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 function ItemRow({
   item,
@@ -35,32 +49,37 @@ function ItemRow({
   const canBuy = !owned && insight >= item.cost
   return (
     <li className={`undertaker-item ${owned ? 'owned' : ''}`}>
-      <div className="ut-item-head">
-        <h3>{item.name}</h3>
-        <span className="ut-cost">{owned ? 'In your keeping' : `${item.cost} Insight`}</span>
-      </div>
-      <p className="ut-epithet">{item.epithet}</p>
-      <p className="ut-pitch">&ldquo;{item.pitch}&rdquo;</p>
-      <p className="ut-effect">{item.effect}</p>
-      <div className="ut-item-actions">
-        {!owned ? (
-          <button
-            type="button"
-            className="btn ut-buy"
-            disabled={!canBuy}
-            onClick={onBuy}
-          >
-            {canBuy ? 'Accept the measure' : insight < item.cost ? 'Insufficient Insight' : 'Sold'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`btn ut-equip ${equipped ? 'on' : ''}`}
-            onClick={onEquip}
-          >
-            {equipped ? 'Prepared for the hunt' : 'Prepare for the hunt'}
-          </button>
-        )}
+      <div className="ut-item-row">
+        <ShopCardArt imageKey={item.imageKey} name={item.name} />
+        <div className="ut-item-body">
+          <div className="ut-item-head">
+            <h3>{item.name}</h3>
+            <span className="ut-cost">{owned ? 'In your keeping' : `${item.cost} Insight`}</span>
+          </div>
+          <p className="ut-epithet">{item.epithet}</p>
+          <p className="ut-pitch">&ldquo;{item.pitch}&rdquo;</p>
+          <p className="ut-effect">{item.effect}</p>
+          <div className="ut-item-actions">
+            {!owned ? (
+              <button
+                type="button"
+                className="btn ut-buy"
+                disabled={!canBuy}
+                onClick={onBuy}
+              >
+                {canBuy ? 'Accept the measure' : insight < item.cost ? 'Insufficient Insight' : 'Sold'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`btn ut-equip ${equipped ? 'on' : ''}`}
+                onClick={onEquip}
+              >
+                {equipped ? 'Prepared for the hunt' : 'Prepare for the hunt'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </li>
   )

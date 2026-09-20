@@ -6,6 +6,7 @@
  * trueGoodEnding: traded demon photo to cure Keller’s lycanthropy.
  * trueGoodEndingCount: times that cure/trade path has completed.
  * smileEndingSeen: Bazaar Smile meta epilogue has played.
+ * kellerWestEndingSeen: West Keller origin epilogue has played.
  */
 
 import { getSave, patchSave } from '../save/gameSave'
@@ -69,6 +70,27 @@ export function shouldPlaySmileEpilogue(): boolean {
   return (s.trueGoodEndingCount ?? 0) >= 2 && !s.smileEndingSeen
 }
 
+export function hasKellerWestEndingSeen(): boolean {
+  return Boolean(getSave().kellerWestEndingSeen)
+}
+
+export function markKellerWestEndingSeen(): void {
+  patchSave({ kellerWestEndingSeen: true })
+}
+
+/**
+ * First true-good after NG+ is in play (and not yet seen) → West Keller origin.
+ * Does not replace Smile (Smile stays on 2nd true-good via shouldPlaySmileEpilogue).
+ */
+export function shouldPlayKellerWestEpilogue(): boolean {
+  const s = getSave()
+  if (s.kellerWestEndingSeen) return false
+  // NG+ in play: flag from Return / charm / prior NG+ run
+  if (!s.ngplus && !s.kellerCharm) return false
+  // First true-good only — second+ belongs to Smile
+  return (s.trueGoodEndingCount ?? 0) === 1
+}
+
 /** Eligible for kept-demon / trade path on the next demon clear. */
 export function isTrueEndEligible(secretUnlocked: boolean): boolean {
   return loadClearCount() >= 2 && secretUnlocked
@@ -85,6 +107,14 @@ export function readForceTrueEnd(): boolean {
 export function readForceSmileEnd(): boolean {
   try {
     return new URLSearchParams(window.location.search).get('forceSmileEnd') === '1'
+  } catch {
+    return false
+  }
+}
+
+export function readForceKellerWest(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('forceKellerWest') === '1'
   } catch {
     return false
   }

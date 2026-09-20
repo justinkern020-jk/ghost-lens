@@ -40,6 +40,7 @@ export const LEGACY_KEYS = {
   equipped: 'ghost-lens-equipped-item-v1',
   trueGoodEndingCount: 'ghost-lens-true-good-ending-count-v1',
   smileEndingSeen: 'ghost-lens-smile-ending-seen-v1',
+  kellerWestEndingSeen: 'ghost-lens-keller-west-ending-seen-v1',
 } as const
 
 export interface GhostLensSave {
@@ -57,6 +58,8 @@ export interface GhostLensSave {
   trueGoodEndingCount: number
   /** Bazaar Smile meta epilogue has played (second true-good). */
   smileEndingSeen: boolean
+  /** West Keller origin epilogue has played (first true-good after NG+). */
+  kellerWestEndingSeen: boolean
   kellerCharm: boolean
   ngplus: boolean
   secretUnlocked: boolean
@@ -95,6 +98,7 @@ export function emptySave(): GhostLensSave {
     trueGoodEnding: false,
     trueGoodEndingCount: 0,
     smileEndingSeen: false,
+    kellerWestEndingSeen: false,
     kellerCharm: false,
     ngplus: false,
     secretUnlocked: false,
@@ -209,6 +213,7 @@ function mergeLegacyOnto(s: GhostLensSave): GhostLensSave {
   }
   if (next.trueGoodEnding && next.trueGoodEndingCount < 1) next.trueGoodEndingCount = 1
   if (lsFlag(LEGACY_KEYS.smileEndingSeen)) next.smileEndingSeen = true
+  if (lsFlag(LEGACY_KEYS.kellerWestEndingSeen)) next.kellerWestEndingSeen = true
   if (lsFlag(LEGACY_KEYS.kellerCharm)) next.kellerCharm = true
   if (lsFlag(LEGACY_KEYS.ngplus)) next.ngplus = true
   if (lsFlag(LEGACY_KEYS.secretUnlocked)) next.secretUnlocked = true
@@ -274,6 +279,11 @@ function readSaveRaw(): GhostLensSave | null {
     } else {
       merged.smileEndingSeen = Boolean(legacy.smileEndingSeen)
     }
+    if (!('kellerWestEndingSeen' in legacy)) {
+      merged.kellerWestEndingSeen = false
+    } else {
+      merged.kellerWestEndingSeen = Boolean(legacy.kellerWestEndingSeen)
+    }
     return merged
   } catch {
     return null
@@ -313,6 +323,7 @@ function mirrorLegacy(s: GhostLensSave): void {
   flag(LEGACY_KEYS.trueEnd, s.trueGoodEnding)
   lsSet(LEGACY_KEYS.trueGoodEndingCount, String(s.trueGoodEndingCount ?? 0))
   flag(LEGACY_KEYS.smileEndingSeen, s.smileEndingSeen)
+  flag(LEGACY_KEYS.kellerWestEndingSeen, s.kellerWestEndingSeen)
   flag(LEGACY_KEYS.kellerCharm, s.kellerCharm)
   flag(LEGACY_KEYS.ngplus, s.ngplus)
   flag(LEGACY_KEYS.secretUnlocked, s.secretUnlocked)
@@ -436,6 +447,7 @@ export function importSaveJson(json: string): { ok: true; save: GhostLensSave } 
         ),
       ),
       smileEndingSeen: Boolean(parsed.smileEndingSeen),
+      kellerWestEndingSeen: Boolean(parsed.kellerWestEndingSeen),
       introSeen:
         typeof parsed.introSeen === 'boolean'
           ? parsed.introSeen

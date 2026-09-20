@@ -82,6 +82,7 @@ import { WerewolfAttack } from './components/WerewolfAttack'
 import { AmbientScanCard } from './components/AmbientScanCard'
 import { BazaarIntro, type BazaarIntroChoice } from './components/BazaarIntro'
 import { BazaarSmileEpilogue } from './components/BazaarSmileEpilogue'
+import { BazaarKellerWestEpilogue } from './components/BazaarKellerWestEpilogue'
 import {
   grantKellerCharm,
   hasKellerCharm,
@@ -122,11 +123,14 @@ import {
   incrementClearCount,
   isTrueEndEligible,
   loadClearCount,
+  markKellerWestEndingSeen,
   markSmileEndingSeen,
   markTrueGoodEnding,
+  readForceKellerWest,
   readForceSmileEnd,
   readForceTrueEnd,
   setKeptDemonPolaroid,
+  shouldPlayKellerWestEpilogue,
   shouldPlaySmileEpilogue,
 } from './ngplus/progress'
 import {
@@ -293,6 +297,7 @@ export default function App() {
   const [epilogueOpen, setEpilogueOpen] = useState(false)
   const [endCardOpen, setEndCardOpen] = useState(false)
   const [smileEpilogueOpen, setSmileEpilogueOpen] = useState(false)
+  const [kellerWestEpilogueOpen, setKellerWestEpilogueOpen] = useState(false)
   const [epilogueRefused, setEpilogueRefused] = useState(false)
   /** True only on Return (accept) — Keller took the glass; not on true-good trade. */
   const [lensReturnedToKeller, setLensReturnedToKeller] = useState(false)
@@ -749,7 +754,7 @@ export default function App() {
 
   // Dev: force true-end trade scene
   useEffect(() => {
-    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen) return
+    if (!started || epilogueOpen || endCardOpen || smileEpilogueOpen || kellerWestEpilogueOpen) return
     if (!readForceTrueEnd()) return
     try {
       const url = new URL(window.location.href)
@@ -764,11 +769,11 @@ export default function App() {
     setCinematicLock(true)
     setEpilogueOpen(true)
     setStatusLine('Force true end — trade the demon polaroid.')
-  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen])
+  }, [started, epilogueOpen, endCardOpen, smileEpilogueOpen, kellerWestEpilogueOpen])
 
   // Dev: force Bazaar Smile meta epilogue
   useEffect(() => {
-    if (!started || smileEpilogueOpen || endCardOpen || epilogueOpen) return
+    if (!started || smileEpilogueOpen || kellerWestEpilogueOpen || endCardOpen || epilogueOpen) return
     if (!readForceSmileEnd()) return
     try {
       const url = new URL(window.location.href)
@@ -780,7 +785,23 @@ export default function App() {
     setCinematicLock(true)
     setSmileEpilogueOpen(true)
     setStatusLine('Force Smile ending — bazaar epilogue.')
-  }, [started, smileEpilogueOpen, endCardOpen, epilogueOpen])
+  }, [started, smileEpilogueOpen, kellerWestEpilogueOpen, endCardOpen, epilogueOpen])
+
+  // Dev: force Keller West origin epilogue
+  useEffect(() => {
+    if (!started || kellerWestEpilogueOpen || smileEpilogueOpen || endCardOpen || epilogueOpen) return
+    if (!readForceKellerWest()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceKellerWest')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setCinematicLock(true)
+    setKellerWestEpilogueOpen(true)
+    setStatusLine('Force Keller West ending — boom-town origin epilogue.')
+  }, [started, kellerWestEpilogueOpen, smileEpilogueOpen, endCardOpen, epilogueOpen])
 
   // Manifest / flee
   useEffect(() => {
@@ -2079,7 +2100,13 @@ export default function App() {
       setEpilogueRefused(false)
       setLensReturnedToKeller(false)
       setPostGame(true)
-      if (shouldPlaySmileEpilogue()) {
+      if (shouldPlayKellerWestEpilogue()) {
+        setCinematicLock(true)
+        setKellerWestEpilogueOpen(true)
+        setStatusLine(
+          'The Empty Seat changes hands. The proprietor owes you a boom-town origin.',
+        )
+      } else if (shouldPlaySmileEpilogue()) {
         setCinematicLock(true)
         setSmileEpilogueOpen(true)
         setStatusLine(
@@ -2125,6 +2152,16 @@ export default function App() {
     setCinematicLock(false)
     setPostGame(true)
     setStatusLine('The tale ends. You who played are filed under glass.')
+  }, [])
+
+  const onKellerWestEpilogueComplete = useCallback(() => {
+    markKellerWestEndingSeen()
+    setKellerWestEpilogueOpen(false)
+    setEndCardOpen(true)
+    setPostGame(true)
+    setStatusLine(
+      'The telling ends. Herr Keller first learned the shutter in alkali dust.',
+    )
   }, [])
 
   const onWerewolfComplete = useCallback(() => {
@@ -2351,7 +2388,7 @@ export default function App() {
             <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
             <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
-            <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> · <code>?forceSmileEnd=1</code> ·{' '}
+            <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> · <code>?forceSmileEnd=1</code> · <code>?forceKellerWest=1</code> ·{' '}
             <code>?forceSecretGhost=1</code> · <code>?forceNGPlus=1</code> ·{' '}
             <code>?forceStranger=1</code> · <code>?forceSpookboxMaker=1</code> ·{' '}
             <code>?forceSpookbox=1</code> · <code>?forceArchivistStun=1</code> ·
@@ -2433,7 +2470,7 @@ export default function App() {
         onResolved={onEpilogueResolved}
       />
       <EndTitleCard
-        open={endCardOpen && !smileEpilogueOpen}
+        open={endCardOpen && !smileEpilogueOpen && !kellerWestEpilogueOpen}
         refused={epilogueRefused}
         trueGood={trueGoodEnd}
         onDismiss={dismissEndCard}
@@ -2441,6 +2478,10 @@ export default function App() {
       <BazaarSmileEpilogue
         open={smileEpilogueOpen}
         onComplete={onSmileEpilogueComplete}
+      />
+      <BazaarKellerWestEpilogue
+        open={kellerWestEpilogueOpen}
+        onComplete={onKellerWestEpilogueComplete}
       />
       <WerewolfAttack active={werewolfActive} onComplete={onWerewolfComplete} />
 

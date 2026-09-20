@@ -16,6 +16,8 @@ export type OccultItemId =
 
 export interface OccultItemDef {
   id: OccultItemId
+  /** Basename under /shop-cards/{imageKey}.png */
+  imageKey: string
   name: string
   epithet: string
   /** Cryptic undertaker sales copy — never names the matchup. */
@@ -30,6 +32,7 @@ export interface OccultItemDef {
 export const OCCULT_CATALOG: OccultItemDef[] = [
   {
     id: 'salt_line',
+    imageKey: 'salt-line',
     name: 'Salt Line',
     epithet: 'coarse · unbroken pour',
     pitch:
@@ -40,6 +43,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
   },
   {
     id: 'iron_nail',
+    imageKey: 'iron-nail',
     name: 'Iron Nail',
     epithet: 'coffin iron · cold head',
     pitch:
@@ -50,6 +54,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
   },
   {
     id: 'silver_mirror',
+    imageKey: 'silver-mirror',
     name: 'Silver Mirror',
     epithet: 'pocket glass · mourning plate',
     pitch:
@@ -60,6 +65,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
   },
   {
     id: 'hush_charm',
+    imageKey: 'hush-charm',
     name: 'Hush Charm',
     epithet: 'wax · black thread · whispered name',
     pitch:
@@ -70,6 +76,7 @@ export const OCCULT_CATALOG: OccultItemDef[] = [
   },
   {
     id: 'black_crepe',
+    imageKey: 'black-crepe',
     name: 'Black Crepe',
     epithet: 'true name · mourning fold',
     pitch:
