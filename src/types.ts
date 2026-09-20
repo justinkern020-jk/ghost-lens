@@ -67,6 +67,38 @@ export const COLLECTIBLE_SCENE_LABELS = [
   'life vest',
   'wet shoes',
   'tackle box',
+  // Trial — The Thin One
+  'chair',
+  'empty chair',
+  'park bench',
+  'shadow',
+  'silhouette',
+  'doorway',
+  // Boss — Threshold Warden
+  'padlock',
+  'chain',
+  'threshold',
+  'keyring',
+  'ash',
+  'urn',
+  'burnt candle',
+  'incense',
+  // Demon — Empty Seat
+  'black ribbon',
+  'mourning ribbon',
+  'crepe paper',
+  'swing',
+  'swing set',
+  'playground',
+  // Secret — Pale Archivist
+  'handwritten letter',
+  'notebook',
+  'ledger',
+  'parchment',
+  'library card',
+  'index card',
+  'filing cabinet',
+  'bookshelf',
 ] as const
 
 

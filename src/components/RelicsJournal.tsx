@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { LORE_COLLECTIBLES, type LoreCollectible } from '../lore/collectibles'
-import { TARGET_LABELS, type TargetType } from '../types'
+import type { SpiritKind } from '../types'
 
 interface Props {
   open: boolean
@@ -7,11 +8,41 @@ interface Props {
   unlockedIds: Set<string>
 }
 
-const GHOST_TITLE: Record<TargetType, string> = {
+/** Display order for journal sections (main four, then late game). */
+const SPIRIT_SECTION_ORDER: SpiritKind[] = [
+  'tombstone',
+  'ring',
+  'doll',
+  'lake',
+  'trial',
+  'boss',
+  'demon',
+  'secret',
+]
+
+const GHOST_TITLE: Record<SpiritKind, string> = {
   tombstone: 'The Unburied',
   ring: 'The Vow That Stayed',
   doll: 'Porcelain Audience',
   lake: 'What the Water Kept',
+  trial: 'The Thin One',
+  boss: 'Threshold Warden',
+  demon: 'The Empty Seat',
+  secret: 'Pale Archivist',
+}
+
+function RelicImage({ imageKey, title }: { imageKey: string; title: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return (
+    <img
+      className="rj-thumb"
+      src={`/relics/${imageKey}.png`}
+      alt={title}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
 }
 
 export function RelicsJournal({ open, onClose, unlockedIds }: Props) {
@@ -40,7 +71,7 @@ export function RelicsJournal({ open, onClose, unlockedIds }: Props) {
           box, a crib, a pier — and hold steady.
         </p>
       ) : (
-        TARGET_LABELS.map((ghost) => {
+        SPIRIT_SECTION_ORDER.map((ghost) => {
           const scraps = unlocked.filter((c) => c.ghost === ghost)
           if (scraps.length === 0) return null
           return (
@@ -52,8 +83,13 @@ export function RelicsJournal({ open, onClose, unlockedIds }: Props) {
               <ul className="rj-list">
                 {scraps.map((c: LoreCollectible) => (
                   <li key={c.id} className="rj-entry">
-                    <h4>{c.title}</h4>
-                    <p className="rj-lore">{c.lore}</p>
+                    <div className="rj-entry-row">
+                      <RelicImage imageKey={c.imageKey} title={c.title} />
+                      <div className="rj-entry-body">
+                        <h4>{c.title}</h4>
+                        <p className="rj-lore">{c.lore}</p>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -2126,6 +2126,24 @@ html, body, #root {
   background: #12100e;
   padding: 12px;
 }
+.rj-entry-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.rj-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid #3a3428;
+  background: #0a0908;
+  flex-shrink: 0;
+  image-rendering: auto;
+}
+.rj-entry-body {
+  min-width: 0;
+  flex: 1;
+}
 .rj-entry h4 {
   margin: 0 0 8px;
   font-weight: normal;
@@ -2138,6 +2156,7 @@ html, body, #root {
   font-size: 12px;
   line-height: 1.55;
   color: #b8b0a0;
+  white-space: pre-line;
 }
 
 /* ===== Portrait slots (UI panels — AI art later) ===== */
