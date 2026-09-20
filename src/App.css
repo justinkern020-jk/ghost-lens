@@ -2372,3 +2372,288 @@ html, body, #root {
 .app-cinematic .hud { display: none; }
 .app-postgame .brand-mark { opacity: 0.55; }
 
+
+
+/* —— Keller werewolf attack overlay —— */
+.werewolf-attack-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.werewolf-attack-overlay .ww-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, rgba(40,10,8,0.35), rgba(0,0,0,0.85));
+}
+.werewolf-attack-overlay .ww-vignette {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px 40px rgba(0,0,0,0.85);
+}
+.ww-keller-silhouette {
+  position: absolute;
+  width: 120px;
+  height: 220px;
+  opacity: 0.85;
+  transition: opacity 0.6s ease;
+}
+.phase-howl .ww-keller-silhouette,
+.phase-lunge .ww-keller-silhouette,
+.phase-eat .ww-keller-silhouette { opacity: 0; }
+.ww-hat {
+  display: block;
+  width: 70px;
+  height: 18px;
+  margin: 0 auto;
+  background: #1a1410;
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 -8px 0 -2px #1a1410;
+}
+.ww-head {
+  display: block;
+  width: 48px;
+  height: 56px;
+  margin: 4px auto 0;
+  background: #3a322c;
+  border-radius: 40% 40% 45% 45%;
+}
+.ww-coat {
+  display: block;
+  width: 90px;
+  height: 120px;
+  margin: 6px auto 0;
+  background: linear-gradient(180deg, #2a221c, #12100c);
+  border-radius: 8px 8px 4px 4px;
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+}
+.ww-beast {
+  position: absolute;
+  width: 200px;
+  height: 240px;
+  transform: scale(0.55);
+  opacity: 0;
+  transition: transform 0.5s ease, opacity 0.4s ease;
+}
+.phase-form .ww-beast { opacity: 0.55; transform: scale(0.7); }
+.phase-howl .ww-beast { opacity: 0.95; transform: scale(1.05) translateY(-8px); }
+.phase-lunge .ww-beast {
+  opacity: 1;
+  transform: scale(2.2) translateY(40px);
+  transition-duration: 0.35s;
+}
+.phase-eat .ww-beast {
+  opacity: 0.4;
+  transform: scale(3.5) translateY(80px);
+  filter: contrast(1.4) brightness(0.5);
+}
+.ww-skull {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  width: 90px;
+  height: 70px;
+  margin-left: -45px;
+  background: #1c1612;
+  border-radius: 40% 40% 35% 35%;
+  box-shadow: inset 0 -10px 0 #0a0806;
+}
+.ww-snout {
+  position: absolute;
+  left: 50%;
+  top: 78px;
+  width: 50px;
+  height: 40px;
+  margin-left: -25px;
+  background: #2a1c16;
+  border-radius: 10% 10% 40% 40%;
+}
+.ww-fang {
+  position: absolute;
+  top: 108px;
+  width: 8px;
+  height: 22px;
+  background: #d8d0c0;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+.ww-fang.fang-l { left: calc(50% - 14px); }
+.ww-fang.fang-r { left: calc(50% + 6px); }
+.ww-eye {
+  position: absolute;
+  top: 48px;
+  width: 12px;
+  height: 8px;
+  background: #c45a1a;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #c45a1a;
+}
+.ww-eye.eye-l { left: calc(50% - 22px); }
+.ww-eye.eye-r { left: calc(50% + 10px); }
+.ww-ear {
+  position: absolute;
+  top: 10px;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 36px solid #1a1410;
+}
+.ww-ear.ear-l { left: calc(50% - 50px); transform: rotate(-18deg); }
+.ww-ear.ear-r { left: calc(50% + 22px); transform: rotate(18deg); }
+.ww-jaw {
+  position: absolute;
+  left: 50%;
+  top: 112px;
+  width: 56px;
+  height: 18px;
+  margin-left: -28px;
+  background: #1a120e;
+  border-radius: 0 0 40% 40%;
+}
+.ww-spine {
+  position: absolute;
+  left: 50%;
+  top: 130px;
+  width: 70px;
+  height: 90px;
+  margin-left: -35px;
+  background: linear-gradient(180deg, #1a1410, #0c0a08);
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
+}
+.ww-claw {
+  position: absolute;
+  top: 150px;
+  width: 40px;
+  height: 50px;
+  background: #1a1410;
+  clip-path: polygon(0 0, 100% 20%, 70% 100%, 30% 100%);
+}
+.ww-claw.claw-l { left: 10px; transform: rotate(-25deg); }
+.ww-claw.claw-r { right: 10px; transform: rotate(25deg) scaleX(-1); }
+.ww-caption {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0 16px;
+  max-width: 90vw;
+  text-align: center;
+  font: 14px/1.45 Georgia, serif;
+  color: #d8c8b0;
+  text-shadow: 0 2px 12px #000;
+  z-index: 2;
+}
+.ww-caption.cold { color: #a89080; }
+.ww-caption.danger { color: #c45a3a; letter-spacing: 0.04em; }
+.ww-blackout {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  animation: ww-black 0.6s ease forwards;
+}
+@keyframes ww-black {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Hunter special death */
+.death-screen.hunter-death h1 { color: #a87850; }
+.death-screen.hunter-death .death-sub {
+  color: #c4a070;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+/* NG+ cipher stamp on polaroids */
+.polaroid-card { position: relative; }
+.cipher-stamp {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 14px/1 "Courier New", monospace;
+  color: rgba(90, 30, 20, 0.72);
+  border: 1.5px solid rgba(90, 30, 20, 0.45);
+  border-radius: 50%;
+  background: rgba(235, 220, 190, 0.35);
+  transform: rotate(12deg);
+  letter-spacing: 0;
+  pointer-events: none;
+  text-shadow: 0 0 1px rgba(40, 10, 8, 0.4);
+  box-shadow: inset 0 0 6px rgba(120, 40, 20, 0.15);
+}
+.polaroid-card.secret-polaroid .cipher-stamp,
+.polaroid-card.secret-polaroid {
+  outline: 1px solid rgba(140, 120, 80, 0.35);
+}
+
+/* True-end epilogue accent */
+.epilogue-stranger .epilogue-kicker:has(+ *) { }
+
+
+/* —— Ambient object scan overlay —— */
+.ambient-scan-card {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24px 16px 28px;
+  background: linear-gradient(180deg, transparent 40%, rgba(4, 3, 2, 0.72));
+  pointer-events: auto;
+}
+.ambient-scan-panel {
+  width: min(420px, 94vw);
+  background: linear-gradient(180deg, #1a1612, #0c0a08);
+  border: 1px solid #5a4e3e;
+  padding: 18px 16px 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+}
+.ambient-scan-kicker {
+  margin: 0 0 8px;
+  font: 10px/1 "Courier New", monospace;
+  letter-spacing: 0.18em;
+  color: #8a7a68;
+}
+.ambient-scan-title {
+  margin: 0 0 10px;
+  font: 600 18px/1.2 Georgia, serif;
+  color: #ebe4d6;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+}
+.ambient-scan-reading {
+  margin: 0 0 12px;
+  font: 14px/1.55 Georgia, serif;
+  color: #c8b8a0;
+}
+.ambient-scan-clue {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-left: 2px solid #6a5a48;
+  background: rgba(40, 32, 24, 0.55);
+  font: 13px/1.5 Georgia, serif;
+  color: #a89078;
+}
+.ambient-scan-clue-label {
+  display: block;
+  margin-bottom: 4px;
+  font: 9px/1 "Courier New", monospace;
+  letter-spacing: 0.14em;
+  color: #7a6a58;
+  text-transform: uppercase;
+}
+.ambient-scan-clue.clue-cipher { border-left-color: #8a6040; }
+.ambient-scan-clue.clue-shop { border-left-color: #5a6a50; }
+.ambient-scan-clue.clue-stranger { border-left-color: #6a5070; }
+.ambient-scan-clue.clue-relic { border-left-color: #706050; }

@@ -18,7 +18,7 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 
 **Developer override**
 
-- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1`
+- Query: `?forceDusk=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1`
 - Boot screen button: **Force dusk (test)**
 - In-hunt: long-press the title area (~1s)
 
@@ -124,11 +124,34 @@ First-catch **lesser echo** for onboarding:
 
 After the playground Demon is sealed:
 
-1. **Finale cinematic** (AR world-anchored if WebXR; screen-space overlay otherwise): demon polaroid drops → ground fissure opens → hell hands pull the photo under → crack seals → silence. Controls/HUD lock for the full beat.
-2. **Epilogue screen** — **Herr Keller** (Austrian Van Helsing–type) congratulates the hunt, then asks for **his camera back** (Ghost Lens was his instrument). **Return the lens** / **Refuse** (colder line).
-3. **THE END** title card → quiet post-game (polaroids remain; Undertaker has a farewell line).
+1. **Finale cinematic** (AR world-anchored if WebXR; screen-space overlay otherwise): demon polaroid drops → ground fissure opens → hell hands pull the photo under → crack seals → silence. HUD locks for the beat.
+2. **Epilogue** — **Herr Keller** (Austrian Van Helsing–type) asks for **his camera back**.
+   - **Return the lens** → affirming goodbye, unlocks NG+ item **Keller's Silver Charm** (hunter's lens strap; modest slower ghost approach on later runs). **THE END** → post-game.
+   - **Refuse** → portrait leaves; Keller transforms into a stylized uncanny **werewolf**, lunges, and eats you → special death: *Died of fright* / **The hunter takes his due**. No NG+ item.
+3. Hell-hands still consume the demon polaroid on a normal clear (unless true-ending conditions below).
 
-**Dev:** `?forceDemonWin=1` (finale only) · `?forceEpilogue=1` (Keller screen) · combine with `?forceDusk=1&forcePlayground=1` as needed.
+**Dev:** `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · combine with `?forceDusk=1&forcePlayground=1`.
+
+## New Game+ — charm, cipher, secret ghost
+
+Persisted in **localStorage**: NG+ flag, Keller charm, clear count, secret unlock, kept demon polaroid, true-good-ending.
+
+| Piece | Detail |
+|-------|--------|
+| **Keller's Silver Charm** | Earned by **Return**. On NG+ (`?forceNGPlus=1` / `?ngplus=1` or saved flag) you start with it — ghosts approach ~12% slower. |
+| **Polaroid cipher** | NG+ only: each main seal + trial polaroid gets a stamped letter. Together they spell **CRYPT**. |
+| **Secret ghost** | *The Pale Archivist* — NG+ only. Point the lens at a **crypt / mausoleum / ossuary**. Harder than the trial echo; unique lore. Capturing marks secret unlocked. |
+| **True good ending** | Requires **clear count ≥ 2** and **secret unlocked**. On the next demon clear, hell-hands are **suppressed** — you **keep the demon polaroid** and can **trade it to Keller** to **cure his lycanthropy**. Peaceful epilogue; no werewolf. |
+
+**Cipher answer:** `C R Y P T` (tombstone→C, ring→R, doll→Y, lake→P, trial→T).
+
+**Dev:** `?forceNGPlus=1` · `?forceSecretGhost=1` · `?forceTrueEnd=1` (skips to trade/cure scene).
+
+## Ambient object scans
+
+Many mundane props can be inspected without starting a fight. Hold them in frame for a short sustain → **"THE LENS SEES"** card with a melancholy reading. About a third of entries include a soft clue (strangers, relics, cipher, or shop). Seen ids persist; same object won't spam (session soft-lock + ~90s cooldown).
+
+**Dev:** `?forceScan=1` or `?forceScan=<id>` (e.g. `empty_photo_frame`).
 
 ## Portrait slots (UI panels)
 
@@ -176,7 +199,7 @@ npm run preview -- --host
 
 ## Privacy
 
-Camera frames classified **on device**. Polaroids, Favor, owned tools, clue/voice flags persist in **localStorage** only. Geolocation (optional) only for solar dusk.
+Camera frames classified **on device**. Polaroids, Favor, owned tools, clue/voice flags, NG+ progress, and ambient scan history persist in **localStorage** only. Geolocation (optional) only for solar dusk.
 
 ## Not Spookbox
 

@@ -1,3 +1,4 @@
+import { allAmbientScanLabels } from './lore/ambientScans'
 export const TARGET_LABELS = ['tombstone', 'ring', 'doll', 'lake'] as const
 export type TargetType = (typeof TARGET_LABELS)[number]
 
@@ -9,7 +10,7 @@ export const TRIAL_TRIGGER_LABEL = 'chair' as const
 export type TrialTriggerLabel = typeof TRIAL_TRIGGER_LABEL
 
 /** All spirit kinds including trial echo, mid-boss Warden, and endgame Demon. */
-export type SpiritKind = TargetType | 'trial' | 'boss' | 'demon'
+export type SpiritKind = TargetType | 'trial' | 'boss' | 'demon' | 'secret'
 
 /** CLIP labels that suggest a playground scene (endgame location). */
 export const PLAYGROUND_LABELS = [
@@ -68,7 +69,18 @@ export const COLLECTIBLE_SCENE_LABELS = [
   'tackle box',
 ] as const
 
+/** CLIP labels that can summon the NG+ secret haunt (crypt). */
+export const SECRET_TRIGGER_LABELS = [
+  'crypt',
+  'mausoleum',
+  'ossuary',
+  'stone vault',
+  'tomb',
+] as const
+
 export const CANDIDATE_LABELS = [
+  ...allAmbientScanLabels(),
+  ...SECRET_TRIGGER_LABELS,
   ...TARGET_LABELS,
   TRIAL_TRIGGER_LABEL,
   ...PLAYGROUND_LABELS,
@@ -96,6 +108,9 @@ export interface DetectionResult {
   /** Trial / lesser-echo prop (chair). */
   trialLabel?: TrialTriggerLabel | null
   trialConfidence?: number
+  secretConfidence?: number
+  ambientScanLabel?: string | null
+  ambientScanConfidence?: number
 }
 
 export interface SpiritLore {
@@ -121,6 +136,8 @@ export interface Capture {
   isDemon?: boolean
   /** Tutorial lesser echo — not a main seal. */
   isTrial?: boolean
+  /** NG+ secret character ghost. */
+  isSecret?: boolean
 }
 
 export type ArMode = 'checking' | 'webxr' | 'fallback' | 'unsupported'
@@ -148,6 +165,10 @@ export function isMultiSealKind(kind: SpiritKind | null): kind is 'boss' | 'demo
 
 export function isTrialKind(kind: SpiritKind | null): kind is 'trial' {
   return kind === 'trial'
+}
+
+export function isSecretKind(kind: SpiritKind | null): kind is 'secret' {
+  return kind === 'secret'
 }
 
 /** Main-seal types only (excludes trial / boss / demon). */

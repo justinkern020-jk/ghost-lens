@@ -57,6 +57,40 @@ import {
   EndTitleCard,
   type EpilogueChoice,
 } from './components/EpilogueStranger'
+
+import { WerewolfAttack } from './components/WerewolfAttack'
+import { AmbientScanCard } from './components/AmbientScanCard'
+import {
+  grantKellerCharm,
+  kellerCharmPerkActive,
+  KELLER_CHARM,
+  readNgPlusActive,
+} from './ngplus/kellerCharm'
+import { cipherLetterFor } from './ngplus/cipher'
+import {
+  ambientScanForLabel,
+  loadSeenAmbientScans,
+  saveSeenAmbientScans,
+  readForceScan,
+  AMBIENT_SCANS,
+  type AmbientScanEntry,
+} from './lore/ambientScans'
+import {
+  isSecretUnlocked,
+  markSecretUnlocked,
+  readForceSecretGhost,
+  SECRET_GHOST,
+} from './ngplus/secretGhost'
+import {
+  hasKeptDemonPolaroid,
+  hasTrueGoodEnding,
+  incrementClearCount,
+  isTrueEndEligible,
+  loadClearCount,
+  markTrueGoodEnding,
+  readForceTrueEnd,
+  setKeptDemonPolaroid,
+} from './ngplus/progress'
 import {
   loadHeardVoiceHints,
   pickVoiceHint,
@@ -143,6 +177,15 @@ function readForceDemonWin(): boolean {
   }
 }
 
+function readForceWerewolf(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('forceWerewolf') === '1'
+  } catch {
+    return false
+  }
+}
+
 function readForceEpilogue(): boolean {
   try {
     const q = new URLSearchParams(window.location.search)
@@ -192,6 +235,19 @@ export default function App() {
   const [epilogueRefused, setEpilogueRefused] = useState(false)
   const [postGame, setPostGame] = useState(false)
   const [cinematicLock, setCinematicLock] = useState(false)
+  const [werewolfActive, setWerewolfActive] = useState(false)
+  const [hunterDeath, setHunterDeath] = useState(false)
+  const [tradeMode, setTradeMode] = useState(false)
+  const [trueGoodEnd, setTrueGoodEnd] = useState(() => hasTrueGoodEnding())
+  const [ngPlusActive] = useState(() => readNgPlusActive())
+  // Cipher helper retained for NG+ polaroid stamps / status
+  void cipherLetterFor
+  const [secretUnlocked, setSecretUnlocked] = useState(() => isSecretUnlocked())
+  const [clearCount, setClearCount] = useState(() => loadClearCount())
+  const [keptDemonPhoto, setKeptDemonPhoto] = useState(() => hasKeptDemonPolaroid())
+  const [activeAmbientScan, setActiveAmbientScan] = useState<AmbientScanEntry | null>(null)
+  const [seenAmbientScans, setSeenAmbientScans] = useState<Set<string>>(() => loadSeenAmbientScans())
+  const ambientCooldownRef = useRef<Map<string, number>>(new Map())
   const trialOnboardedRef = useRef(
     (() => {
       try {
@@ -307,6 +363,9 @@ export default function App() {
     sustainedStrangerLabel,
     sustainedCollectibleLabel,
     sustainedTrial,
+    sustainedSecret,
+    sustainedAmbientScanLabel,
+    clearSustainedAmbientScan,
     classifyFrame,
     resetGhost,
     forceManifest,
@@ -414,7 +473,7 @@ export default function App() {
   }, [dusk.allowed, started, arRunning, resetGhost, dusk.status.reason])
 
   const resolveEncounterKind = useCallback(
-    (detected: TargetType | null, trial = false): SpiritKind | null => {
+    (detected: TargetType | null, trial = false, secret = false): SpiritKind | null => {
       // Endgame demon takes priority when at playground and unlocked
       if (
         playgroundUnlocked &&
@@ -426,6 +485,7 @@ export default function App() {
       // Main targets can become Warden; trial never upgrades to boss
       if (detected && bossUnlocked && !bossDefeated) return 'boss'
       if (detected) return detected
+      if (ngPlusActive && (secret || readForceSecretGhost())) return 'secret'
       if (trial || forceTrial) return 'trial'
       return null
     },
@@ -438,6 +498,7 @@ export default function App() {
       bossUnlocked,
       bossDefeated,
       forceTrial,
+      ngPlusActive,
     ],
   )
 
@@ -561,6 +622,44 @@ export default function App() {
     setEpilogueOpen(true)
   }, [started, epilogueOpen, endCardOpen])
 
+  // Dev: force werewolf refuse path
+  useEffect(() => {
+    if (!started || werewolfActive || dead) return
+    if (!readForceWerewolf()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceWerewolf')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setCinematicLock(true)
+    setWerewolfActive(true)
+    if (arRunning && arSessionRef.current) {
+      arSessionRef.current.playWerewolfAttack()
+    }
+    setStatusLine('Force werewolf — Keller refuse path.')
+  }, [started, werewolfActive, dead, arRunning])
+
+  // Dev: force true-end trade scene
+  useEffect(() => {
+    if (!started || epilogueOpen || endCardOpen) return
+    if (!readForceTrueEnd()) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('forceTrueEnd')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setKeptDemonPolaroid(true)
+    setKeptDemonPhoto(true)
+    setTradeMode(true)
+    setCinematicLock(true)
+    setEpilogueOpen(true)
+    setStatusLine('Force true end — trade the demon polaroid.')
+  }, [started, epilogueOpen, endCardOpen])
+
   // Manifest / flee
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
@@ -575,13 +674,15 @@ export default function App() {
     const show =
       ghostShouldShow ||
       sustainedTrial ||
+      sustainedSecret ||
+      readForceSecretGhost() ||
       forceTrial ||
       (demonSite && (forcePlayground || playgroundArrived) && activeKindRef.current === 'demon')
 
-    if (show && (sustainedTarget || sustainedTrial || forceTrial || demonSite)) {
+    if (show && (sustainedTarget || sustainedTrial || sustainedSecret || readForceSecretGhost() || forceTrial || demonSite)) {
       setFleeing(false)
       const kind =
-        resolveEncounterKind(sustainedTarget, sustainedTrial || forceTrial) ??
+        resolveEncounterKind(sustainedTarget, sustainedTrial || forceTrial, sustainedSecret || readForceSecretGhost()) ??
         (demonSite ? 'demon' : null)
       if (!kind) return
 
@@ -607,6 +708,10 @@ export default function App() {
           setStatusLine('The Empty Seat answers. Burn the photographs into the seal.')
         } else if (kind === 'boss') {
           setStatusLine('The Threshold Warden answers. Seal it in phases.')
+        } else if (kind === 'secret') {
+          setStatusLine(
+            `The Pale Archivist answers. ${SECRET_GHOST.epithet}. The cipher led here.`,
+          )
         } else if (kind === 'trial') {
           if (!trialOnboardedRef.current) {
             trialOnboardedRef.current = true
@@ -721,6 +826,10 @@ export default function App() {
       if (now < approachSlowUntilRef.current) {
         // Iron nail: approach clock crawls
         elapsed *= 0.45
+      }
+      if (kellerCharmPerkActive()) {
+        // Keller's Silver Charm (NG+): hungers hesitate a half-step
+        elapsed *= KELLER_CHARM.approachSlowFactor
       }
       const raw = proximityFromElapsed(elapsed, profile.approachMs)
       const prox = easedProximity(raw)
@@ -969,6 +1078,82 @@ export default function App() {
     sustainedCollectibleLabel,
     unlockedCollectibles,
     clearSustainedCollectible,
+  ])
+
+
+  // Ambient object scans — melancholy readings, no combat spawn
+  useEffect(() => {
+    if (!started || dead || !dusk.allowed) return
+    if (cinematicLock || finaleActive || epilogueOpen || werewolfActive) return
+    if (activeAmbientScan) return
+
+    const forced = readForceScan()
+    if (forced) {
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('forceScan')
+        window.history.replaceState({}, '', url.toString())
+      } catch {
+        /* ignore */
+      }
+      const entry =
+        typeof forced === 'string'
+          ? AMBIENT_SCANS.find((e) => e.id === forced) ?? AMBIENT_SCANS[0]
+          : AMBIENT_SCANS[0]
+      if (entry) {
+        setActiveAmbientScan(entry)
+        setSeenAmbientScans((prev) => {
+          const next = new Set(prev)
+          next.add(entry.id)
+          saveSeenAmbientScans(next)
+          return next
+        })
+      }
+      return
+    }
+
+    if (!sustainedAmbientScanLabel) return
+    // Don't interrupt mid-fight with boss/demon/secret
+    if (
+      activeKindRef.current === 'demon' ||
+      activeKindRef.current === 'boss' ||
+      activeKindRef.current === 'secret'
+    ) {
+      return
+    }
+    const entry = ambientScanForLabel(sustainedAmbientScanLabel)
+    if (!entry) {
+      clearSustainedAmbientScan()
+      return
+    }
+    const now = performance.now()
+    const last = ambientCooldownRef.current.get(entry.id) ?? 0
+    // Soft lock: once seen this session, only re-show after 90s cooldown
+    if (seenAmbientScans.has(entry.id) && now - last < 90_000) {
+      clearSustainedAmbientScan()
+      return
+    }
+    ambientCooldownRef.current.set(entry.id, now)
+    setActiveAmbientScan(entry)
+    setSeenAmbientScans((prev) => {
+      const next = new Set(prev)
+      next.add(entry.id)
+      saveSeenAmbientScans(next)
+      return next
+    })
+    clearSustainedAmbientScan()
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    cinematicLock,
+    finaleActive,
+    epilogueOpen,
+    werewolfActive,
+    activeAmbientScan,
+    sustainedAmbientScanLabel,
+    seenAmbientScans,
+    clearSustainedAmbientScan,
   ])
 
   // Disembodied voices — rare when/where hints (after first capture or on dusk hunt)
@@ -1244,15 +1429,42 @@ export default function App() {
       }
     }
 
-    // Big endgame climax after demon seal
+    // Endgame after demon seal — true-end may keep the polaroid
     if (kind === 'demon') {
       setCinematicLock(true)
-      setFinalePolaroidUrl(polaroidUrl)
-      setFinaleActive(true)
-      void audioRef.current.ensure().then(() => audioRef.current.playDemonFinale())
-      if (arRunning && arSessionRef.current) {
-        arSessionRef.current.playDemonFinale(polaroidUrl)
+      const nextClears = incrementClearCount()
+      setClearCount(nextClears)
+      const eligible =
+        readForceTrueEnd() ||
+        keptDemonPhoto ||
+        isTrueEndEligible(secretUnlocked)
+      if (eligible) {
+        // Suppress hell-hands; player keeps the demon polaroid
+        setKeptDemonPolaroid(true)
+        setKeptDemonPhoto(true)
+        setTradeMode(true)
+        setFinalePolaroidUrl(polaroidUrl)
+        setEpilogueOpen(true)
+        setStatusLine(
+          'The ground stays shut. The Empty Seat remains in your hand.',
+        )
+      } else {
+        setFinalePolaroidUrl(polaroidUrl)
+        setFinaleActive(true)
+        void audioRef.current.ensure().then(() => audioRef.current.playDemonFinale())
+        if (arRunning && arSessionRef.current) {
+          arSessionRef.current.playDemonFinale(polaroidUrl)
+        }
       }
+    }
+
+    // NG+ secret character seal
+    if (kind === 'secret') {
+      markSecretUnlocked()
+      setSecretUnlocked(true)
+      setStatusLine(
+        'The Pale Archivist is filed under emulsion. The vault goes quiet.',
+      )
     }
   }
 
@@ -1398,6 +1610,8 @@ export default function App() {
   const retryAfterDeath = () => {
     deadRef.current = false
     setDead(false)
+    setHunterDeath(false)
+    setWerewolfActive(false)
     healthRef.current = MAX_HEALTH
     setHealth(MAX_HEALTH)
     setBpm(56)
@@ -1486,25 +1700,60 @@ export default function App() {
 
   const onEpilogueResolved = useCallback((choice: EpilogueChoice) => {
     setEpilogueOpen(false)
-    setEpilogueRefused(choice === 'refuse')
+    if (choice === 'refuse') {
+      setEpilogueRefused(true)
+      setWerewolfActive(true)
+      setStatusLine('Herr Keller’s manners leave him.')
+      if (arRunning && arSessionRef.current) {
+        arSessionRef.current.playWerewolfAttack()
+      }
+      return
+    }
+    if (choice === 'trade') {
+      setKeptDemonPolaroid(false)
+      setKeptDemonPhoto(false)
+      markTrueGoodEnding()
+      setTrueGoodEnd(true)
+      setTradeMode(false)
+      setEpilogueRefused(false)
+      setEndCardOpen(true)
+      setPostGame(true)
+      setStatusLine(
+        'The Empty Seat changes hands. The moon lets go of Herr Keller.',
+      )
+      return
+    }
+    // Return the lens — grant NG+ charm
+    grantKellerCharm()
+    setEpilogueRefused(false)
+    setTradeMode(false)
     setEndCardOpen(true)
     setPostGame(true)
     setStatusLine(
-      choice === 'refuse'
-        ? 'Herr Keller tips his hat. The lens stays cold in your hands.'
-        : 'Herr Keller takes the glass. The polaroids remain.',
+      `Herr Keller takes the glass. He leaves you ${KELLER_CHARM.name}.`,
     )
-  }, [])
+  }, [arRunning])
 
   const dismissEndCard = useCallback(() => {
     setEndCardOpen(false)
     setCinematicLock(false)
     setStatusLine(
-      epilogueRefused
-        ? 'Post-hunt quiet. The Undertaker will have opinions.'
-        : 'Post-hunt quiet. The lens is gone. The photographs stay.',
+      trueGoodEnd
+        ? 'Post-hunt quiet. A cured hunter walks under a kinder moon.'
+        : epilogueRefused
+          ? 'Post-hunt quiet. The Undertaker will have opinions.'
+          : 'Post-hunt quiet. The lens is gone. The photographs stay.',
     )
-  }, [epilogueRefused])
+  }, [epilogueRefused, trueGoodEnd])
+
+  const onWerewolfComplete = useCallback(() => {
+    setWerewolfActive(false)
+    setHunterDeath(true)
+    deadRef.current = true
+    setDead(true)
+    setCinematicLock(false)
+    setStatusLine('')
+  }, [])
 
   const confirmPlaygroundArrival = () => {
     setPlaygroundArrived(true)
@@ -1636,7 +1885,10 @@ export default function App() {
               {forceBoss ? ' · FORCE BOSS' : ''}
               {forcePlayground ? ' · FORCE PLAYGROUND' : ''}
               {forceTrial ? ' · FORCE TRIAL' : ''}
-              {postGame ? ' · POST-HUNT' : ''}
+              {clearCount > 0 ? ` · clears ${clearCount}` : ''}
+              {secretUnlocked ? ' · SECRET' : ''}
+              {ngPlusActive ? ' · NG+' : ''}
+              {postGame ? ' · POST-HUNT' : ''}{ngPlusActive ? ' · NG+' : ''}{trueGoodEnd ? ' · TRUE END' : ''}
             </li>
             {!dusk.allowed && (
               <li className="warn">{dusk.status.reason}</li>
@@ -1684,6 +1936,8 @@ export default function App() {
             Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> ·{' '}
             <code>?forcePlayground=1</code> · <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
+            <code>?forceWerewolf=1</code> · <code>?forceTrueEnd=1</code> ·{' '}
+            <code>?forceSecretGhost=1</code> · <code>?forceNGPlus=1</code> ·{' '}
             <code>?forceStranger=1</code> · long-press title for dusk.
           </p>
           {modelError && <p className="warn">{modelError}</p>}
@@ -1756,12 +2010,18 @@ export default function App() {
         polaroidUrl={finalePolaroidUrl}
         onComplete={onFinaleComplete}
       />
-      <EpilogueStranger open={epilogueOpen} onResolved={onEpilogueResolved} />
+      <EpilogueStranger
+        open={epilogueOpen}
+        tradeMode={tradeMode}
+        onResolved={onEpilogueResolved}
+      />
       <EndTitleCard
         open={endCardOpen}
         refused={epilogueRefused}
+        trueGood={trueGoodEnd}
         onDismiss={dismissEndCard}
       />
+      <WerewolfAttack active={werewolfActive} onComplete={onWerewolfComplete} />
 
       {!cinematicLock && (
       <Hud
@@ -1875,6 +2135,7 @@ export default function App() {
         bossDefeated={bossDefeated}
         playgroundUnlocked={playgroundUnlocked}
         demonDefeated={demonDefeated}
+        ngPlus={ngPlusActive}
       />
 
       <UndertakerCounter
@@ -1910,6 +2171,13 @@ export default function App() {
         unlockedIds={unlockedCollectibles}
       />
 
+      {activeAmbientScan && (
+        <AmbientScanCard
+          entry={activeAmbientScan}
+          onDismiss={() => setActiveAmbientScan(null)}
+        />
+      )}
+
       {collectibleToast && (
         <div className="collectible-toast" role="status">
           {collectibleToast}
@@ -1918,7 +2186,9 @@ export default function App() {
 
       <StrangerVignette clue={activeClue} onDismiss={dismissStranger} />
 
-      {dead && <DeathScreen onRetry={retryAfterDeath} />}
+      {dead && (
+        <DeathScreen onRetry={retryAfterDeath} hunterDeath={hunterDeath} />
+      )}
     </div>
   )
 }

@@ -116,6 +116,17 @@ export const BOSS_TENSION: TensionProfile = {
   phaseKnockback: BOSS_PHASE_KNOCKBACK,
 }
 
+/** NG+ secret haunt — harder than trial, shy of boss. */
+export const SECRET_TENSION: TensionProfile = {
+  approachMs: 4800,
+  firstHitDelayMs: 320,
+  hitIntervalMs: 900,
+  hitDamage: 0.38,
+  passiveDrainPerSec: 0.05,
+  captureHeal: 0.32,
+  phaseKnockback: 0,
+}
+
 export const DEMON_TENSION: TensionProfile = {
   approachMs: DEMON_APPROACH_MS,
   firstHitDelayMs: DEMON_FIRST_HIT_DELAY_MS,
@@ -129,6 +140,7 @@ export const DEMON_TENSION: TensionProfile = {
 export function tensionFor(kind: string | null): TensionProfile {
   if (kind === 'demon') return DEMON_TENSION
   if (kind === 'boss') return BOSS_TENSION
+  if (kind === 'secret') return SECRET_TENSION
   if (kind === 'trial') return TRIAL_TENSION
   return NORMAL_TENSION
 }

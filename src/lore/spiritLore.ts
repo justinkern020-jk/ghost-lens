@@ -62,6 +62,15 @@ const BANKS: Record<SpiritKind, LoreBank> = {
       'Listen: the heartbeat you calmed was never yours alone. We borrowed it. We stretched it. We learned its tempo so we could break it later. Seal us in paper if it comforts you. Paper yellows. We do not.',
     ],
   },
+  secret: {
+    name: 'The Pale Archivist',
+    epithet: 'vault-breath · catalogued wrong',
+    trapped: [
+      'You followed the letters into the dark under the stone. I was filing names that never belonged to the living. Your light is a stamp I did not authorize — now I am indexed under emulsion, and the vault misses my handwriting.',
+      'Crypt air tastes like old paper. I counted bones the way a librarian counts returns. You interrupted the ledger. Being trapped in a photograph is only another kind of shelf. Do not open me near morning.',
+      'The cipher on your polaroids was mine once — C, R, Y, P, T — a path for hunters who return what they borrow. You kept enough manners to find me. I almost regret teaching you. Almost.',
+    ],
+  },
   demon: {
     name: 'The Empty Seat',
     epithet: 'playground · wrong proportions · swing-chain hymn',

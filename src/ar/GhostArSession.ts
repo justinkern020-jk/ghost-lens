@@ -9,6 +9,7 @@ import {
   createDemonFinaleScene,
   type FinaleSceneHandle,
 } from './DemonFinaleScene'
+import { createWerewolfScene } from './WerewolfScene'
 
 export type ArSessionStatus =
   | 'idle'
@@ -237,6 +238,62 @@ export class GhostArSession {
       this.entityRoot.add(handle.root)
     } else {
       this.scene.add(handle.root)
+    }
+    this.finale = handle
+    this.finalePlaying = true
+    this.activeTarget = null
+  }
+
+
+  /**
+   * Keller refuse path: hunter transforms into werewolf and lunges.
+   * World-anchored when an entity root exists; otherwise scene-root.
+   */
+  playWerewolfAttack(
+    onPhase?: (name: string) => void,
+    onComplete?: () => void,
+  ) {
+    if (!this.scene) {
+      onComplete?.()
+      return
+    }
+    if (this.entity && this.approachOffset) {
+      this.approachOffset.remove(this.entity)
+      this.entity = null
+    }
+    this.fleeing = false
+    this.placeRequested = false
+    this.proximity = 0
+    if (this.approachOffset) {
+      this.approachOffset.position.set(0, 0, 0)
+      this.approachOffset.scale.set(1, 1, 1)
+    }
+    if (this.finale) {
+      this.scene.remove(this.finale.root)
+      this.finale.dispose()
+      this.finale = null
+    }
+    const handle = createWerewolfScene((phase) => {
+      onPhase?.(phase)
+      if (phase === 'done') {
+        this.finalePlaying = false
+        if (this.finale && this.scene) {
+          this.scene.remove(this.finale.root)
+          this.finale.dispose()
+          this.finale = null
+        }
+        if (this.entityRoot) this.entityRoot.visible = false
+        onComplete?.()
+      }
+    })
+    // Face the viewer — place slightly in front of camera if no anchor
+    handle.root.position.set(0, 0, 0)
+    if (this.entityRoot) {
+      this.entityRoot.visible = true
+      this.entityRoot.add(handle.root)
+    } else {
+      this.scene.add(handle.root)
+      handle.root.position.set(0, 0, -1.2)
     }
     this.finale = handle
     this.finalePlaying = true

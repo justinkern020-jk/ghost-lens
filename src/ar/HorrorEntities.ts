@@ -618,6 +618,75 @@ function buildTrialEcho(): THREE.Group {
   return g
 }
 
+
+/** NG+ secret — Pale Archivist: elongated clerk silhouette, ledger jaw, vault chill. */
+function buildPaleArchivist(): THREE.Group {
+  const g = new THREE.Group()
+  const ash = (c: number, o = 0.78) =>
+    new THREE.MeshStandardMaterial({
+      color: c,
+      roughness: 0.95,
+      metalness: 0.05,
+      transparent: true,
+      opacity: o,
+      flatShading: true,
+      depthWrite: false,
+    })
+  const cloth = ash(0x2a3038, 0.82)
+  const bone = ash(0xb8b0a4, 0.75)
+  const ink = ash(0x0a0c10, 0.9)
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.38, 0.12), cloth)
+  torso.position.y = 0.95
+  g.add(torso)
+
+  // Too-tall neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.18, 5), bone)
+  neck.position.y = 1.22
+  g.add(neck)
+
+  const skull = new THREE.Mesh(new THREE.DodecahedronGeometry(0.09, 0), bone)
+  skull.position.set(0.01, 1.4, 0.02)
+  skull.scale.set(0.85, 1.25, 0.9)
+  g.add(skull)
+
+  // Ledger held wrong
+  const ledger = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.18), ink)
+  ledger.position.set(0.12, 0.85, 0.1)
+  ledger.rotation.z = -0.4
+  ledger.rotation.x = 0.3
+  g.add(ledger)
+
+  // Long filing arms
+  for (const side of [-1, 1] as const) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.55, 5), cloth)
+    arm.geometry.translate(0, -0.275, 0)
+    arm.position.set(side * 0.12, 1.05, 0)
+    arm.rotation.z = side * 0.55
+    arm.rotation.x = -0.35
+    g.add(arm)
+  }
+
+  // Hollow ink-pit eyes
+  const pit = new THREE.MeshBasicMaterial({ color: 0x050508, transparent: true, opacity: 0.95 })
+  for (const x of [-0.03, 0.04]) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), pit)
+    e.position.set(x, 1.42, 0.07)
+    g.add(e)
+  }
+
+  // Spine of catalog cards
+  for (let i = 0; i < 4; i++) {
+    const card = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.004), ash(0xd8d0c0, 0.55))
+    card.position.set(-0.02 + i * 0.01, 0.7 + i * 0.05, -0.08)
+    card.rotation.y = 0.2
+    g.add(card)
+  }
+
+  g.userData.kind = 'secret'
+  return g
+}
+
 export function createHorrorEntity(target: SpiritKind): THREE.Group {
   switch (target) {
     case 'tombstone':
@@ -634,6 +703,8 @@ export function createHorrorEntity(target: SpiritKind): THREE.Group {
       return buildThresholdWarden()
     case 'demon':
       return buildPlaygroundDemon()
+    case 'secret':
+      return buildPaleArchivist()
   }
 }
 
@@ -724,6 +795,11 @@ export function animateHorrorEntity(
     group.rotation.y = Math.sin(elapsed * 0.55) * (0.12 + agg * 0.25)
     group.rotation.z = (Math.random() - 0.5) * 0.01 * (1 + agg * 2)
     group.scale.setScalar(1.35 + agg * 0.12)
+  } else if (kind === 'secret') {
+    // Catalog sway — wrong filing rhythm
+    group.position.y = Math.sin(elapsed * 0.7) * 0.012 + agg * 0.04
+    group.rotation.y = Math.sin(elapsed * 0.4) * 0.1
+    group.scale.setScalar(1.05 + agg * 0.1)
   } else if (kind === 'demon') {
     // Swing sway — empty seats energy
     const sway = Math.sin(elapsed * (1.1 + agg * 0.8)) * (0.08 + agg * 0.12)

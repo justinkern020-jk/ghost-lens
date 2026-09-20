@@ -1,11 +1,17 @@
 interface Props {
   onRetry: () => void
+  /** Special refuse-path death after Keller’s werewolf attack. */
+  hunterDeath?: boolean
 }
 
-/** Blackout game-over: flatline + "Died of fright". */
-export function DeathScreen({ onRetry }: Props) {
+/** Blackout game-over: flatline + "Died of fright" (or hunter’s due). */
+export function DeathScreen({ onRetry, hunterDeath = false }: Props) {
   return (
-    <div className="death-screen" role="alertdialog" aria-labelledby="death-title">
+    <div
+      className={`death-screen ${hunterDeath ? 'hunter-death' : ''}`}
+      role="alertdialog"
+      aria-labelledby="death-title"
+    >
       <div className="death-flatline" aria-hidden>
         <svg viewBox="0 0 320 40" preserveAspectRatio="none">
           <polyline
@@ -20,7 +26,11 @@ export function DeathScreen({ onRetry }: Props) {
       </div>
       <p className="death-bpm">BPM — — —</p>
       <h1 id="death-title">Died of fright</h1>
-      <p className="death-sub">The entity reached you. Capture sooner next time.</p>
+      <p className="death-sub">
+        {hunterDeath
+          ? 'The hunter takes his due.'
+          : 'The entity reached you. Capture sooner next time.'}
+      </p>
       <button type="button" className="btn capture-btn death-retry" onClick={onRetry}>
         Retry
       </button>

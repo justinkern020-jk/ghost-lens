@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Capture } from '../types'
+import { cipherLetterFor } from '../ngplus/cipher'
 
 interface Props {
   captures: Capture[]
@@ -10,6 +11,8 @@ interface Props {
   bossDefeated: boolean
   playgroundUnlocked?: boolean
   demonDefeated?: boolean
+  /** Show NG+ cipher glyphs on polaroids. */
+  ngPlus?: boolean
 }
 
 export function Gallery({
@@ -21,6 +24,7 @@ export function Gallery({
   bossDefeated,
   playgroundUnlocked = false,
   demonDefeated = false,
+  ngPlus = false,
 }: Props) {
   const [selected, setSelected] = useState<Capture | null>(null)
 
@@ -60,6 +64,11 @@ export function Gallery({
                 onClick={() => setSelected(c)}
               >
                 <img src={c.dataUrl} alt={`${c.lore.name} polaroid`} />
+                {ngPlus && cipherLetterFor(c.target) && (
+                  <span className="cipher-stamp" aria-label={`Cipher letter ${cipherLetterFor(c.target)}`}>
+                    {cipherLetterFor(c.target)}
+                  </span>
+                )}
                 <span className="polaroid-caption">{c.lore.name}</span>
               </button>
             </li>

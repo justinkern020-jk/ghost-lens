@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   CANDIDATE_LABELS,
+  SECRET_TRIGGER_LABELS,
   PLAYGROUND_LABELS,
   COLLECTIBLE_SCENE_LABELS,
   STRANGER_SCENE_LABELS,
@@ -11,6 +12,7 @@ import {
   type TargetType,
   type TrialTriggerLabel,
 } from '../types'
+import { allAmbientScanLabels } from '../lore/ambientScans'
 
 type ClassifierFn = (
   input: HTMLCanvasElement | HTMLImageElement | string,
@@ -45,6 +47,9 @@ export function useClassifier() {
     collectibleConfidence: 0,
     trialLabel: null,
     trialConfidence: 0,
+    secretConfidence: 0,
+    ambientScanLabel: null,
+    ambientScanConfidence: 0,
   })
   const [sustainedTarget, setSustainedTarget] = useState<TargetType | null>(null)
   const [ghostShouldShow, setGhostShouldShow] = useState(false)
@@ -57,6 +62,10 @@ export function useClassifier() {
     string | null
   >(null)
   const [sustainedTrial, setSustainedTrial] = useState(false)
+  const [sustainedSecret, setSustainedSecret] = useState(false)
+  const [sustainedAmbientScanLabel, setSustainedAmbientScanLabel] = useState<
+    string | null
+  >(null)
 
   const classifierRef = useRef<ClassifierFn | null>(null)
   const busyRef = useRef(false)
@@ -74,6 +83,11 @@ export function useClassifier() {
   const lastCollectibleSeenRef = useRef<number | null>(null)
   const trialSustainRef = useRef<number | null>(null)
   const lastTrialSeenRef = useRef<number | null>(null)
+  const secretSustainRef = useRef<number | null>(null)
+  const lastSecretSeenRef = useRef<number | null>(null)
+  const ambientSustainRef = useRef<number | null>(null)
+  const ambientCandidateRef = useRef<string | null>(null)
+  const lastAmbientSeenRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -176,6 +190,18 @@ export function useClassifier() {
         }
       }
 
+      const AMBIENT_LABELS = allAmbientScanLabels()
+      let bestAmbient: string | null = null
+      let bestAmbientScore = 0
+      for (const aLabel of AMBIENT_LABELS) {
+        const s = scores[aLabel] ?? 0
+        if (s > bestAmbientScore) {
+          bestAmbientScore = s
+          bestAmbient = aLabel
+        }
+      }
+
+      const secretScore = Math.max(0, ...SECRET_TRIGGER_LABELS.map((l) => scores[l] ?? 0))
       const trialScore = scores[TRIAL_TRIGGER_LABEL] ?? 0
 
       const negativeMax = Math.max(
@@ -208,12 +234,26 @@ export function useClassifier() {
         bestCollectibleScore >= COLLECTIBLE_CONFIDENCE_THRESHOLD &&
         bestCollectibleScore > negativeMax * 0.85
 
+      const AMBIENT_CONFIDENCE_THRESHOLD = 0.24
+      const ambientHit =
+        bestAmbient &&
+        bestAmbientScore >= AMBIENT_CONFIDENCE_THRESHOLD &&
+        bestAmbientScore > negativeMax * 0.82 &&
+        // Prefer not to steal focus from a hard ghost lock
+        (!accepted || bestAmbientScore >= bestScore * 0.9)
+
       // Trial chair: easier threshold; furniture is a near-neighbor so loosen veto.
       // Prefer main ghost targets when they clearly win.
       const trialHit =
         trialScore >= TRIAL_CONFIDENCE_THRESHOLD &&
         trialScore > negativeMax * 0.78 &&
         (!accepted || trialScore >= bestScore * 1.05)
+
+      const SECRET_CONFIDENCE_THRESHOLD = 0.22
+      const secretHit =
+        secretScore >= SECRET_CONFIDENCE_THRESHOLD &&
+        secretScore > negativeMax * 0.8 &&
+        (!accepted || secretScore >= bestScore * 1.02)
 
       const label = accepted ? bestTarget : null
       const confidence = accepted ? bestScore : bestScore
@@ -233,6 +273,9 @@ export function useClassifier() {
         collectibleConfidence: bestCollectibleScore,
         trialLabel,
         trialConfidence: trialScore,
+        secretConfidence: secretScore,
+        ambientScanLabel: ambientHit ? bestAmbient : null,
+        ambientScanConfidence: bestAmbientScore,
       })
       setPlaygroundDetected(!!playgroundHit)
 
@@ -303,6 +346,30 @@ export function useClassifier() {
         }
       }
 
+      if (ambientHit && bestAmbient) {
+        lastAmbientSeenRef.current = t
+        if (ambientCandidateRef.current !== bestAmbient) {
+          ambientCandidateRef.current = bestAmbient
+          ambientSustainRef.current = t
+          setSustainedAmbientScanLabel(null)
+        } else if (
+          ambientSustainRef.current &&
+          t - ambientSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedAmbientScanLabel(bestAmbient)
+        }
+      } else {
+        ambientCandidateRef.current = null
+        ambientSustainRef.current = null
+        if (
+          lastAmbientSeenRef.current &&
+          t - lastAmbientSeenRef.current > FLEE_MS
+        ) {
+          setSustainedAmbientScanLabel(null)
+        }
+      }
+
+
       if (trialHit) {
         lastTrialSeenRef.current = t
         if (!trialSustainRef.current) trialSustainRef.current = t
@@ -319,8 +386,30 @@ export function useClassifier() {
           t - lastTrialSeenRef.current > FLEE_MS
         ) {
           setSustainedTrial(false)
+    setSustainedSecret(false)
+    setSustainedAmbientScanLabel(null)
         }
       }
+
+      if (secretHit) {
+        lastSecretSeenRef.current = t
+        if (!secretSustainRef.current) secretSustainRef.current = t
+        if (
+          secretSustainRef.current &&
+          t - secretSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedSecret(true)
+        }
+      } else {
+        secretSustainRef.current = null
+        if (
+          lastSecretSeenRef.current &&
+          t - lastSecretSeenRef.current > FLEE_MS
+        ) {
+          setSustainedSecret(false)
+        }
+      }
+
 
       if (label) {
         lastSeenRef.current = t
@@ -383,6 +472,12 @@ export function useClassifier() {
     collectibleSustainRef.current = null
   }, [])
 
+  const clearSustainedAmbientScan = useCallback(() => {
+    setSustainedAmbientScanLabel(null)
+    ambientCandidateRef.current = null
+    ambientSustainRef.current = null
+  }, [])
+
   return {
     ready,
     loadingMsg,
@@ -395,11 +490,14 @@ export function useClassifier() {
     sustainedStrangerLabel,
     sustainedCollectibleLabel,
     sustainedTrial,
+    sustainedSecret,
+    sustainedAmbientScanLabel,
     classifyFrame,
     resetGhost,
     forceManifest,
     forceTrialManifest,
     clearSustainedStranger,
     clearSustainedCollectible,
+    clearSustainedAmbientScan,
   }
 }
