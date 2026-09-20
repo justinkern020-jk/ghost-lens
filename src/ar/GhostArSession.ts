@@ -22,6 +22,7 @@ export interface GhostArCallbacks {
 /**
  * WebXR immersive-ar with hit-test + anchors.
  * Horror entity is world-anchored — stays fixed in the scene as the phone moves.
+ * Proximity pulls the figure toward the viewer (approach threat).
  */
 export class GhostArSession {
   private renderer: THREE.WebGLRenderer | null = null
@@ -33,6 +34,7 @@ export class GhostArSession {
   private viewerSpace: XRReferenceSpace | null = null
   private entityRoot: THREE.Group | null = null
   private entity: THREE.Group | null = null
+  private approachOffset: THREE.Group | null = null
   private anchor: XRAnchor | null = null
   private anchored = false
   private pendingTarget: TargetType | null = null
@@ -49,7 +51,11 @@ export class GhostArSession {
     lastStutter: 0,
     frozenUntil: 0,
   }
+  private proximity = 0
   private light: THREE.HemisphereLight | null = null
+  private tmpCamPos = new THREE.Vector3()
+  private tmpAnchorPos = new THREE.Vector3()
+  private tmpDir = new THREE.Vector3()
 
   constructor(canvas: HTMLCanvasElement, callbacks: GhostArCallbacks = {}) {
     this.canvas = canvas
@@ -110,6 +116,8 @@ export class GhostArSession {
 
     this.entityRoot = new THREE.Group()
     this.entityRoot.visible = false
+    this.approachOffset = new THREE.Group()
+    this.entityRoot.add(this.approachOffset)
     this.scene.add(this.entityRoot)
 
     this.refSpace = await session.requestReferenceSpace('local')
@@ -130,9 +138,9 @@ export class GhostArSession {
   }
 
   private spawnEntity(target: TargetType) {
-    if (!this.entityRoot) return
+    if (!this.approachOffset) return
     if (this.entity) {
-      this.entityRoot.remove(this.entity)
+      this.approachOffset.remove(this.entity)
       this.entity.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           o.geometry.dispose()
@@ -143,7 +151,10 @@ export class GhostArSession {
     }
     this.entity = createHorrorEntity(target)
     this.activeTarget = target
-    this.entityRoot.add(this.entity)
+    this.approachOffset.add(this.entity)
+    this.approachOffset.position.set(0, 0, 0)
+    this.approachOffset.scale.set(1, 1, 1)
+    this.proximity = 0
     this.animState = {
       aggression: 0,
       stutterClock: 0,
@@ -166,11 +177,17 @@ export class GhostArSession {
     this.animState.aggression = Math.max(0, Math.min(1, n))
   }
 
+  /** 0 = at anchor, 1 = in the player's face (melee). */
+  setProximity(n: number) {
+    this.proximity = Math.max(0, Math.min(1, n))
+  }
+
   hideGhost() {
     this.fleeing = true
     this.placeRequested = false
     this.anchored = false
     this.pendingTarget = null
+    this.proximity = 0
     if (this.anchor) {
       try {
         this.anchor.delete()
@@ -192,6 +209,10 @@ export class GhostArSession {
 
   getActiveTarget() {
     return this.activeTarget
+  }
+
+  getProximity() {
+    return this.proximity
   }
 
   captureStill(): string | null {
@@ -232,6 +253,7 @@ export class GhostArSession {
     this.session = null
     this.anchored = false
     this.entity = null
+    this.approachOffset = null
     this.entityRoot = null
     this.activeTarget = null
   }
@@ -252,6 +274,45 @@ export class GhostArSession {
     this.entityRoot.updateMatrix()
   }
 
+  /** Pull entity toward viewer + scale up with proximity (approach threat). */
+  private applyApproach(frame: XRFrame) {
+    if (!this.approachOffset || !this.entityRoot || !this.refSpace) {
+      return
+    }
+    const p = this.proximity
+    if (p <= 0.001) {
+      this.approachOffset.position.set(0, 0, 0)
+      this.approachOffset.scale.setScalar(1)
+      return
+    }
+
+    const viewerPose = frame.getViewerPose(this.refSpace)
+    if (!viewerPose) {
+      // Fallback: scale + local Z toward typical camera
+      this.approachOffset.position.set(0, p * 0.08, p * 0.55)
+      this.approachOffset.scale.setScalar(1 + p * 1.35)
+      return
+    }
+
+    const cam = viewerPose.transform.position
+    this.tmpCamPos.set(cam.x, cam.y, cam.z)
+    this.tmpAnchorPos.copy(this.entityRoot.position)
+    this.tmpDir.copy(this.tmpCamPos).sub(this.tmpAnchorPos)
+    const dist = this.tmpDir.length()
+    if (dist > 0.01) {
+      this.tmpDir.normalize()
+      // Move up to ~70% of the gap toward camera at full proximity
+      const pull = Math.min(dist * 0.72, 1.4) * p
+      // World direction → root-local offset
+      this.tmpDir.applyQuaternion(
+        this.entityRoot.quaternion.clone().invert(),
+      )
+      this.approachOffset.position.copy(this.tmpDir.multiplyScalar(pull))
+    }
+    // Scale up as it closes — reads as looming
+    this.approachOffset.scale.setScalar(1 + p * 1.4)
+  }
+
   private onXRFrame(frame: XRFrame | undefined) {
     if (!this.renderer || !this.scene || !this.camera || !frame || !this.refSpace) {
       return
@@ -262,6 +323,7 @@ export class GhostArSession {
 
     if (this.entity && this.entityRoot?.visible && !this.fleeing) {
       animateHorrorEntity(this.entity, this.animState, dt, elapsed)
+      this.applyApproach(frame)
     }
 
     if (this.fleeing && this.entityRoot) {
@@ -276,8 +338,12 @@ export class GhostArSession {
         this.entityRoot.visible = false
         this.fleeing = false
         this.entityRoot.scale.set(1, 1, 1)
-        if (this.entity) {
-          this.entityRoot.remove(this.entity)
+        if (this.approachOffset) {
+          this.approachOffset.position.set(0, 0, 0)
+          this.approachOffset.scale.set(1, 1, 1)
+        }
+        if (this.entity && this.approachOffset) {
+          this.approachOffset.remove(this.entity)
           this.entity = null
           this.activeTarget = null
         }

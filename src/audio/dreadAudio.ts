@@ -1,4 +1,4 @@
-/** Subtle dread bed — low drone, wet clicks, distant wrong voices. No cartoon boos. */
+/** Subtle dread bed — low drone, wet clicks, distant wrong voices. Hit spikes + flatline. */
 
 export class DreadAudio {
   private ctx: AudioContext | null = null
@@ -8,6 +8,9 @@ export class DreadAudio {
   private clickTimer: number | null = null
   private voiceTimer: number | null = null
   private aggression = 0
+  private heartTimer: number | null = null
+  private bpm = 56
+  private heartOn = false
 
   async ensure(): Promise<void> {
     if (this.started && this.ctx) {
@@ -76,6 +79,120 @@ export class DreadAudio {
         0.5,
       )
     }
+  }
+
+  /** Soft thump synced to UI BPM while ghost is present / fear rising. */
+  setHeartbeat(bpm: number, active: boolean) {
+    this.bpm = Math.max(40, Math.min(200, bpm))
+    this.heartOn = active
+    if (!active) {
+      if (this.heartTimer) {
+        clearTimeout(this.heartTimer)
+        this.heartTimer = null
+      }
+      return
+    }
+    if (!this.heartTimer) this.scheduleHeart()
+  }
+
+  private scheduleHeart() {
+    const tick = () => {
+      if (!this.heartOn || !this.ctx || !this.master) {
+        this.heartTimer = null
+        return
+      }
+      this.thump()
+      const interval = 60000 / this.bpm
+      this.heartTimer = window.setTimeout(tick, interval)
+    }
+    this.heartTimer = window.setTimeout(tick, 200)
+  }
+
+  private thump() {
+    if (!this.ctx || !this.master) return
+    const t = this.ctx.currentTime
+    const o = this.ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.value = 55
+    const g = this.ctx.createGain()
+    g.gain.value = 0.0001
+    o.connect(g)
+    g.connect(this.master)
+    const vol = 0.03 + this.aggression * 0.05
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12)
+    o.frequency.exponentialRampToValueAtTime(32, t + 0.1)
+    o.start(t)
+    o.stop(t + 0.14)
+  }
+
+  /** Melee strike — sharp audio spike. */
+  playHit() {
+    if (!this.ctx || !this.master) return
+    const t = this.ctx.currentTime
+    const noise = this.ctx.createBufferSource()
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.08))
+    }
+    noise.buffer = buf
+    const g = this.ctx.createGain()
+    g.gain.value = 0.28
+    const f = this.ctx.createBiquadFilter()
+    f.type = 'highpass'
+    f.frequency.value = 200
+    noise.connect(f)
+    f.connect(g)
+    g.connect(this.master)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14)
+    noise.start(t)
+    noise.stop(t + 0.15)
+
+    const o = this.ctx.createOscillator()
+    o.type = 'sawtooth'
+    o.frequency.value = 90
+    const og = this.ctx.createGain()
+    og.gain.value = 0.0001
+    o.connect(og)
+    og.connect(this.master)
+    og.gain.exponentialRampToValueAtTime(0.12, t + 0.01)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.2)
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.18)
+    o.start(t)
+    o.stop(t + 0.22)
+  }
+
+  /** Death: drone cuts, short flatline tone. */
+  playFlatline() {
+    if (!this.ctx || !this.master) return
+    this.setHeartbeat(0, false)
+    this.aggression = 0
+    const t = this.ctx.currentTime
+    this.master.gain.cancelScheduledValues(t)
+    this.master.gain.linearRampToValueAtTime(0.08, t + 0.15)
+
+    if (this.drone) {
+      this.drone.frequency.setTargetAtTime(30, t, 0.3)
+    }
+
+    const o = this.ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.value = 440
+    const g = this.ctx.createGain()
+    g.gain.value = 0.0001
+    o.connect(g)
+    g.connect(this.master)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.05)
+    g.gain.setValueAtTime(0.06, t + 1.8)
+    g.gain.linearRampToValueAtTime(0.0001, t + 2.6)
+    o.start(t)
+    o.stop(t + 2.7)
+
+    window.setTimeout(() => {
+      if (!this.ctx || !this.master) return
+      this.master.gain.linearRampToValueAtTime(0.02, this.ctx.currentTime + 0.5)
+    }, 2600)
   }
 
   private scheduleClicks() {
@@ -147,6 +264,7 @@ export class DreadAudio {
   stop() {
     if (this.clickTimer) clearTimeout(this.clickTimer)
     if (this.voiceTimer) clearTimeout(this.voiceTimer)
+    if (this.heartTimer) clearTimeout(this.heartTimer)
     void this.ctx?.close()
     this.ctx = null
     this.started = false

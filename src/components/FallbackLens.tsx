@@ -8,6 +8,10 @@ interface Props {
   ghostTarget: TargetType | null
   fleeing: boolean
   aggression: number
+  /** 0–1 approach toward camera (screen-space grow). */
+  proximity: number
+  hitFlash?: boolean
+  stunned?: boolean
   onVideoEl: (el: HTMLVideoElement | null) => void
 }
 
@@ -19,6 +23,9 @@ export function FallbackLens({
   ghostTarget,
   fleeing,
   aggression,
+  proximity,
+  hitFlash,
+  stunned,
   onVideoEl,
 }: Props) {
   const videoEl = useRef<HTMLVideoElement | null>(null)
@@ -27,12 +34,23 @@ export function FallbackLens({
     onVideoEl(videoEl.current)
   }, [onVideoEl, videoReady])
 
+  const grow = 1 + proximity * 1.85
+  const shakeX = proximity > 0.55 ? (Math.sin(performance.now() / 40) * proximity * 6) : 0
+  const shakeY = proximity > 0.55 ? (Math.cos(performance.now() / 33) * proximity * 4) : 0
+
   const aggStyle = {
     ['--agg' as string]: String(aggression),
+    ['--prox' as string]: String(proximity),
+    ['--grow' as string]: String(grow),
+    ['--shake-x' as string]: `${shakeX}px`,
+    ['--shake-y' as string]: `${shakeY}px`,
   }
 
   return (
-    <div className="lens-stage fallback" style={aggStyle}>
+    <div
+      className={`lens-stage fallback ${proximity > 0.7 ? 'shaking' : ''} ${hitFlash ? 'hit-flash' : ''} ${stunned ? 'stunned' : ''}`}
+      style={aggStyle}
+    >
       <video
         ref={(el) => {
           videoEl.current = el
@@ -49,8 +67,13 @@ export function FallbackLens({
 
       {ghostVisible && ghostTarget && (
         <div
-          className={`horror-entity ${fleeing ? 'fleeing' : ''} agg-${Math.min(5, Math.floor(aggression * 5))}`}
+          className={`horror-entity ${fleeing ? 'fleeing' : ''} agg-${Math.min(5, Math.floor(aggression * 5))} prox-${Math.min(5, Math.floor(proximity * 5))}`}
           data-target={ghostTarget}
+          style={{
+            transform: fleeing
+              ? undefined
+              : `translate(calc(-50% + var(--shake-x, 0px)), calc(-50% + var(--shake-y, 0px))) scale(var(--grow, 1))`,
+          }}
         >
           {ghostTarget === 'tombstone' && <GraveDirtEntity />}
           {ghostTarget === 'ring' && <WeddingEchoEntity />}
@@ -58,6 +81,8 @@ export function FallbackLens({
           {ghostTarget === 'lake' && <DrownedEntity />}
         </div>
       )}
+
+      {hitFlash && <div className="hit-overlay" aria-hidden />}
 
       <div className="fallback-banner">
         Overlay mode — entity sticks to the screen, not the room. For
