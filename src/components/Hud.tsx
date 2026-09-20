@@ -21,6 +21,12 @@ interface Props {
   bpm: number
   proximity: number
   stunned?: boolean
+  isBoss?: boolean
+  /** Boss multi-phase capture progress 0..phases */
+  capturePhase?: number
+  capturePhases?: number
+  uniqueSealed?: number
+  bossUnlocked?: boolean
 }
 
 export function Hud({
@@ -42,14 +48,25 @@ export function Hud({
   bpm,
   proximity,
   stunned,
+  isBoss,
+  capturePhase = 0,
+  capturePhases = 1,
+  uniqueSealed = 0,
+  bossUnlocked = false,
 }: Props) {
   const pct = Math.round(detection.confidence * 100)
   const healthPct = Math.round(Math.max(0, Math.min(1, health)) * 100)
   const beatSec = Math.max(0.28, 60 / Math.max(bpm, 40))
-  const critical = health < 0.35 || proximity > 0.85
+  const critical = health < 0.35 || proximity > 0.85 || !!isBoss
+
+  const captureLabel = isBoss
+    ? capturePhase >= capturePhases - 1
+      ? 'Seal'
+      : `Capture ${capturePhase + 1}/${capturePhases}`
+    : 'Capture'
 
   return (
-    <div className="hud" id="ar-overlay">
+    <div className={`hud ${isBoss ? 'hud-boss' : ''}`} id="ar-overlay">
       <div className="hud-top">
         <div className="brand">
           <span className="brand-mark">◈</span>
@@ -81,11 +98,28 @@ export function Hud({
           </svg>
         </div>
         <div className="calm-label">
-          {healthPct >= 70 ? 'CALM' : healthPct >= 40 ? 'ELEVATED' : 'PANIC'}
+          {isBoss
+            ? 'WARDEN'
+            : healthPct >= 70
+              ? 'CALM'
+              : healthPct >= 40
+                ? 'ELEVATED'
+                : 'PANIC'}
           {proximity > 0.5 && ghostVisible ? ' · APPROACHING' : ''}
           {stunned ? ' · STUNNED' : ''}
         </div>
       </div>
+
+      {isBoss && ghostVisible && (
+        <div className="boss-phase-meter" aria-label="Seal progress">
+          {Array.from({ length: capturePhases }, (_, i) => (
+            <span
+              key={i}
+              className={`phase-pip ${i < capturePhase ? 'filled' : ''}`}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="hud-mid">
         {!modelReady && loadingMsg && (
@@ -93,7 +127,11 @@ export function Hud({
         )}
         {modelReady && (
           <div className="status-pill">
-            {detection.label ? (
+            {isBoss && ghostVisible ? (
+              <>
+                <strong>Threshold Warden</strong> manifested · seal it in phases
+              </>
+            ) : detection.label ? (
               <>
                 Sensing <strong>{detection.label}</strong> · {pct}%
                 {!sustained && detection.label && ' · holding…'}
@@ -101,11 +139,18 @@ export function Hud({
                 {sustained && ghostVisible && !anchored && ' · manifested'}
               </>
             ) : (
-              <>Scanning for tombstone · ring · doll · lake · {pct}% peak</>
+              <>
+                Scanning for tombstone · ring · doll · lake · {pct}% peak
+                {bossUnlocked ? ' · warden unlocked' : ''}
+              </>
             )}
           </div>
         )}
         {statusLine && <div className="status-pill dim">{statusLine}</div>}
+        <div className="status-pill dim collection-pill">
+          Sealed types {uniqueSealed}/4
+          {bossUnlocked ? (isBoss ? ' · FIGHT' : ' · boss ready') : ''}
+        </div>
       </div>
 
       <div className="hud-bottom">
@@ -114,15 +159,15 @@ export function Hud({
           className="btn gallery-btn"
           onClick={onOpenGallery}
         >
-          Gallery ({captureCount})
+          Polaroids ({captureCount})
         </button>
         <button
           type="button"
-          className="btn capture-btn"
+          className={`btn capture-btn ${isBoss ? 'boss-capture' : ''}`}
           disabled={captureDisabled}
           onClick={onCapture}
         >
-          Capture
+          {captureLabel}
         </button>
         {onStartAr && !arRunning && (
           <button type="button" className="btn ar-btn" onClick={onStartAr}>

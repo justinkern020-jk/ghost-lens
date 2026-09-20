@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { TargetType } from '../types'
+import type { SpiritKind } from '../types'
 
 /** Uncanny procedural horror meshes — dread over gore. */
 
@@ -307,7 +307,146 @@ function buildDrowned(): THREE.Group {
   return g
 }
 
-export function createHorrorEntity(target: TargetType): THREE.Group {
+
+/** Boss → amalgam of all four hungers; taller, wronger, harder to look at. */
+function buildThresholdWarden(): THREE.Group {
+  const g = new THREE.Group()
+  const ash = ashMaterial(0x1a1814, 0.88)
+  const bone = ashMaterial(0x6a6458, 0.75)
+  const wet = wetMaterial(0x3a5058, 0.55)
+  const gold = new THREE.MeshStandardMaterial({
+    color: 0xa89030,
+    metalness: 0.95,
+    roughness: 0.2,
+    emissive: 0x443300,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.9,
+  })
+  const porcelain = ashMaterial(0xc8c0b4, 0.7)
+
+  // Massive slumped torso
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.42, 0.16, 1, 1, 1), ash)
+  torso.position.y = 0.38
+  torso.rotation.z = -0.06
+  g.add(torso)
+
+  // Extra rib-spine ridge
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.36, 0.06), bone)
+  spine.position.set(0.02, 0.4, -0.08)
+  g.add(spine)
+
+  // Primary skull (grave) + secondary porcelain face fused
+  const skull = new THREE.Mesh(new THREE.DodecahedronGeometry(0.09, 0), bone)
+  skull.position.set(-0.04, 0.68, 0.04)
+  skull.scale.set(1.1, 1.25, 0.9)
+  g.add(skull)
+
+  const dollFace = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), porcelain)
+  dollFace.position.set(0.08, 0.64, 0.06)
+  dollFace.scale.set(0.85, 1, 0.7)
+  g.add(dollFace)
+
+  const pitMat = new THREE.MeshBasicMaterial({ color: 0x020201, transparent: true, opacity: 0.95 })
+  ;[
+    [-0.07, 0.72, 0.1],
+    [0.0, 0.7, 0.11],
+    [0.1, 0.66, 0.12],
+    [0.06, 0.68, 0.12],
+  ].forEach(([x, y, z], i) => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(i < 2 ? 0.018 : 0.022, 6, 6), pitMat)
+    eye.position.set(x, y, z)
+    g.add(eye)
+  })
+
+  // Wrong jaw
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.035, 0.06), bone)
+  jaw.position.set(-0.02, 0.58, 0.1)
+  jaw.rotation.x = 0.55
+  jaw.rotation.z = 0.25
+  g.add(jaw)
+
+  // Too-long arms (asymmetric)
+  const armL = limb(0.55, 0.03, ash)
+  armL.position.set(-0.16, 0.5, 0)
+  armL.rotation.z = 0.85
+  armL.rotation.x = 0.4
+  const armR = limb(0.62, 0.028, wet)
+  armR.position.set(0.16, 0.48, 0.02)
+  armR.rotation.z = -1.05
+  armR.rotation.x = -0.35
+  g.add(armL, armR)
+
+  // Reaching oversized hand with ring bait
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.035, 0.14), ash)
+  palm.position.set(0.22, 0.15, 0.18)
+  palm.rotation.x = -0.6
+  g.add(palm)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.005, 8, 20), gold)
+  ring.position.set(0.26, 0.18, 0.28)
+  ring.name = 'ringGlint'
+  g.add(ring)
+
+  // Water disk at feet + weeds
+  const plane = new THREE.Mesh(
+    new THREE.CircleGeometry(0.32, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x0a1820,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  plane.rotation.x = -Math.PI / 2
+  plane.position.y = 0.01
+  plane.name = 'waterPlane'
+  g.add(plane)
+
+  const ripple = new THREE.Mesh(
+    new THREE.RingGeometry(0.24, 0.3, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x3a6070,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  ripple.rotation.x = -Math.PI / 2
+  ripple.position.y = 0.015
+  ripple.name = 'ripple'
+  g.add(ripple)
+
+  for (let i = 0; i < 6; i++) {
+    const strand = limb(0.18 + Math.random() * 0.1, 0.007, wetMaterial(0x1a3028, 0.85))
+    strand.position.set((Math.random() - 0.5) * 0.2, 0.72, (Math.random() - 0.5) * 0.1)
+    strand.rotation.x = 0.9 + Math.random() * 0.5
+    strand.rotation.z = (Math.random() - 0.5)
+    g.add(strand)
+  }
+
+  // Shoulder dirt spike
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 4), ash)
+  spike.position.set(-0.12, 0.58, -0.04)
+  spike.rotation.z = 1.0
+  g.add(spike)
+
+  // Soft menacing point light feel via emissive void
+  const voidCore = new THREE.Mesh(
+    new THREE.SphereGeometry(0.04, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x140808, transparent: true, opacity: 0.9 }),
+  )
+  voidCore.position.set(0, 0.4, 0.1)
+  voidCore.name = 'voidCore'
+  g.add(voidCore)
+
+  g.scale.setScalar(1.35)
+  g.userData.kind = 'boss'
+  return g
+}
+
+export function createHorrorEntity(target: SpiritKind): THREE.Group {
   switch (target) {
     case 'tombstone':
       return buildGraveDirt()
@@ -317,6 +456,8 @@ export function createHorrorEntity(target: TargetType): THREE.Group {
       return buildPorcelainDoll()
     case 'lake':
       return buildDrowned()
+    case 'boss':
+      return buildThresholdWarden()
   }
 }
 
@@ -354,7 +495,7 @@ export function animateHorrorEntity(
     group.position.x += (Math.random() - 0.5) * 0.01 * (1 + agg)
   }
 
-  const kind = group.userData.kind as TargetType
+  const kind = group.userData.kind as SpiritKind
 
   if (kind === 'doll') {
     // Slow head turn toward "camera" feel + micro jitters
@@ -386,6 +527,22 @@ export function animateHorrorEntity(
     // Wrong bob — irregular
     group.position.y = Math.abs(Math.sin(elapsed * 1.1)) * 0.02 + agg * 0.03
     group.rotation.z = Math.sin(elapsed * 0.7) * 0.05 + (Math.random() - 0.5) * 0.002 * agg
+  } else if (kind === 'boss') {
+    const glint = group.getObjectByName('ringGlint')
+    if (glint) {
+      glint.rotation.y = elapsed * 3.2
+      const mat = (glint as THREE.Mesh).material as THREE.MeshStandardMaterial
+      mat.emissiveIntensity = 0.5 + Math.sin(elapsed * 10) * 0.4 + agg * 0.5
+    }
+    const ripple = group.getObjectByName('ripple')
+    if (ripple) {
+      const s = 1 + Math.sin(elapsed * 2.2) * 0.12 + agg * 0.15
+      ripple.scale.set(s, s, s)
+    }
+    group.position.y = Math.abs(Math.sin(elapsed * 1.4)) * 0.03 + agg * 0.06
+    group.rotation.y = Math.sin(elapsed * 0.55) * (0.12 + agg * 0.25)
+    group.rotation.z = (Math.random() - 0.5) * 0.01 * (1 + agg * 2)
+    group.scale.setScalar(1.35 + agg * 0.12)
   }
 
   // Opacity flicker when aggressive

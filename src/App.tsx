@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { checkWebXrAr, GhostArSession } from './ar/GhostArSession'
 import { DreadAudio } from './audio/dreadAudio'
 import {
-  APPROACH_MS,
+  BOSS_PHASE_KNOCKBACK,
+  BOSS_TENSION,
   bpmFromState,
-  CAPTURE_HEAL,
   easedProximity,
-  FIRST_HIT_DELAY_MS,
-  HIT_DAMAGE,
-  HIT_INTERVAL_MS,
-  HIT_STUN_MS,
   isMelee,
   MAX_HEALTH,
-  PASSIVE_DRAIN_PER_SEC,
+  NORMAL_TENSION,
   proximityFromElapsed,
+  type TensionProfile,
 } from './combat/tension'
 import { DeathScreen } from './components/DeathScreen'
 import { FallbackLens } from './components/FallbackLens'
@@ -22,8 +19,34 @@ import { Hud } from './components/Hud'
 import { useCamera } from './hooks/useCamera'
 import { useClassifier } from './hooks/useClassifier'
 import { useDuskGate } from './hooks/useDuskGate'
-import type { ArMode, Capture, TargetType } from './types'
+import { makePolaroidStill } from './inventory/makePolaroid'
+import {
+  countOfKind,
+  hasBossCapture,
+  loadPolaroids,
+  savePolaroids,
+  uniqueTargetTypes,
+} from './inventory/polaroidStore'
+import { pickLore } from './lore/spiritLore'
+import {
+  BOSS_CAPTURE_PHASES,
+  BOSS_UNLOCK_UNIQUE,
+  type ArMode,
+  type Capture,
+  type SpiritKind,
+  type TargetType,
+} from './types'
 import './App.css'
+
+function readForceBoss(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('forceBoss') === '1') return true
+    return localStorage.getItem('ghost-lens-force-boss') === '1'
+  } catch {
+    return false
+  }
+}
 
 export default function App() {
   const [arMode, setArMode] = useState<ArMode>('checking')
@@ -31,7 +54,7 @@ export default function App() {
   const [arRunning, setArRunning] = useState(false)
   const [anchored, setAnchored] = useState(false)
   const [fleeing, setFleeing] = useState(false)
-  const [captures, setCaptures] = useState<Capture[]>([])
+  const [captures, setCaptures] = useState<Capture[]>(() => loadPolaroids())
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [statusLine, setStatusLine] = useState('')
   const [aggression, setAggression] = useState(0)
@@ -42,6 +65,10 @@ export default function App() {
   const [stunned, setStunned] = useState(false)
   const [dead, setDead] = useState(false)
   const [started, setStarted] = useState(false)
+  const [forceBoss, setForceBoss] = useState(readForceBoss)
+  const [activeKind, setActiveKind] = useState<SpiritKind | null>(null)
+  const [capturePhase, setCapturePhase] = useState(0)
+  const [capturing, setCapturing] = useState(false)
 
   const xrCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const arSessionRef = useRef<GhostArSession | null>(null)
@@ -49,14 +76,38 @@ export default function App() {
   const audioRef = useRef(new DreadAudio())
   const appearAtRef = useRef<number | null>(null)
   const lastTargetRef = useRef<TargetType | null>(null)
-  const placedForRef = useRef<TargetType | null>(null)
+  const placedForRef = useRef<SpiritKind | null>(null)
   const healthRef = useRef(MAX_HEALTH)
   const lastHitAtRef = useRef(0)
   const meleeEnteredAtRef = useRef<number | null>(null)
   const deadRef = useRef(false)
   const longPressRef = useRef<number | null>(null)
+  const activeKindRef = useRef<SpiritKind | null>(null)
+  const capturePhaseRef = useRef(0)
+  const isBossRef = useRef(false)
 
   const dusk = useDuskGate()
+
+  const uniqueSealed = useMemo(
+    () => uniqueTargetTypes(captures).size,
+    [captures],
+  )
+  const bossDefeated = useMemo(() => hasBossCapture(captures), [captures])
+  const bossUnlocked =
+    forceBoss || uniqueSealed >= BOSS_UNLOCK_UNIQUE
+
+  useEffect(() => {
+    savePolaroids(captures)
+  }, [captures])
+
+  useEffect(() => {
+    activeKindRef.current = activeKind
+    isBossRef.current = activeKind === 'boss'
+  }, [activeKind])
+
+  useEffect(() => {
+    capturePhaseRef.current = capturePhase
+  }, [capturePhase])
 
   const useFallbackCam =
     started &&
@@ -155,6 +206,8 @@ export default function App() {
     setAggression(0)
     setProximity(0)
     setFleeing(false)
+    setActiveKind(null)
+    setCapturePhase(0)
     resetGhost()
     arSessionRef.current?.hideGhost()
     audioRef.current.setPresence(false, 0)
@@ -168,26 +221,48 @@ export default function App() {
     setStatusLine(dusk.status.reason)
   }, [dusk.allowed, started, arRunning, resetGhost, dusk.status.reason])
 
+  const resolveEncounterKind = useCallback(
+    (detected: TargetType): SpiritKind => {
+      if (bossUnlocked && !bossDefeated) return 'boss'
+      return detected
+    },
+    [bossUnlocked, bossDefeated],
+  )
+
   // Manifest / flee
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
 
     if (ghostShouldShow && sustainedTarget) {
       setFleeing(false)
-      if (appearAtRef.current === null || lastTargetRef.current !== sustainedTarget) {
+      const kind = resolveEncounterKind(sustainedTarget)
+
+      if (
+        appearAtRef.current === null ||
+        lastTargetRef.current !== sustainedTarget ||
+        activeKindRef.current !== kind
+      ) {
         appearAtRef.current = performance.now()
         lastTargetRef.current = sustainedTarget
+        setActiveKind(kind)
         setAggression(0)
         setProximity(0)
+        setCapturePhase(0)
+        capturePhaseRef.current = 0
         meleeEnteredAtRef.current = null
         lastHitAtRef.current = 0
+        if (kind === 'boss') {
+          setStatusLine('The Threshold Warden answers. Seal it in phases.')
+        }
       }
 
       if (arRunning && arSessionRef.current) {
-        if (placedForRef.current !== sustainedTarget) {
-          arSessionRef.current.requestPlace(sustainedTarget)
-          placedForRef.current = sustainedTarget
-          setStatusLine(`Something wrong near the ${sustainedTarget}…`)
+        if (placedForRef.current !== kind) {
+          arSessionRef.current.requestPlace(kind)
+          placedForRef.current = kind
+          if (kind !== 'boss') {
+            setStatusLine(`Something wrong near the ${sustainedTarget}…`)
+          }
         }
         arSessionRef.current.setAggression(aggression)
         arSessionRef.current.setProximity(proximity)
@@ -203,10 +278,16 @@ export default function App() {
       appearAtRef.current = null
       meleeEnteredAtRef.current = null
       setProximity(0)
+      setCapturePhase(0)
+      setActiveKind(null)
       if (arSessionRef.current) arSessionRef.current.hideGhost()
       audioRef.current.setPresence(false, 0)
       audioRef.current.setHeartbeat(bpm, false)
-      setStatusLine('It slipped away.')
+      setStatusLine(
+        bossUnlocked && !bossDefeated
+          ? 'The Warden slipped the frame. It will return.'
+          : 'It slipped away.',
+      )
       setTimeout(() => setFleeing(false), 900)
     }
   }, [
@@ -219,6 +300,9 @@ export default function App() {
     dead,
     dusk.allowed,
     bpm,
+    resolveEncounterKind,
+    bossUnlocked,
+    bossDefeated,
   ])
 
   // Approach + health + hits tick
@@ -239,41 +323,51 @@ export default function App() {
       const dt = Math.min(0.25, (now - lastTick) / 1000)
       lastTick = now
 
+      const profile: TensionProfile = isBossRef.current
+        ? BOSS_TENSION
+        : NORMAL_TENSION
       const elapsed = now - appearAtRef.current
-      const raw = proximityFromElapsed(elapsed)
+      const raw = proximityFromElapsed(elapsed, profile.approachMs)
       const prox = easedProximity(raw)
-      const agg = Math.min(1, elapsed / APPROACH_MS)
+      const agg = Math.min(1, elapsed / profile.approachMs)
       setProximity(prox)
       setAggression(agg)
       arSessionRef.current?.setAggression(agg)
       arSessionRef.current?.setProximity(prox)
       audioRef.current.setPresence(true, Math.max(agg, prox))
 
-      // Passive calm drain (stronger as it closes)
       let h = healthRef.current
-      const drain = PASSIVE_DRAIN_PER_SEC * (0.25 + prox * 1.1) * dt
+      const drain =
+        profile.passiveDrainPerSec * (0.25 + prox * 1.1) * dt
       h = Math.max(0, h - drain)
 
-      // Melee strikes
       if (isMelee(prox)) {
         if (meleeEnteredAtRef.current === null) {
           meleeEnteredAtRef.current = now
-          setStatusLine('It’s on you — Capture!')
+          setStatusLine(
+            isBossRef.current
+              ? 'The Warden is on you — keep sealing!'
+              : 'It’s on you — Capture!',
+          )
         }
         const sinceMelee = now - meleeEnteredAtRef.current
         const sinceHit = now - lastHitAtRef.current
         const ready =
-          sinceMelee >= FIRST_HIT_DELAY_MS &&
-          (lastHitAtRef.current === 0 || sinceHit >= HIT_INTERVAL_MS)
+          sinceMelee >= profile.firstHitDelayMs &&
+          (lastHitAtRef.current === 0 || sinceHit >= profile.hitIntervalMs)
         if (ready) {
           lastHitAtRef.current = now
-          h = Math.max(0, h - HIT_DAMAGE)
+          h = Math.max(0, h - profile.hitDamage)
           setHitFlash(true)
           setStunned(true)
           audioRef.current.playHit()
-          setStatusLine('It struck. Your heart skips.')
+          setStatusLine(
+            isBossRef.current
+              ? 'It hits like four graves at once.'
+              : 'It struck. Your heart skips.',
+          )
           window.setTimeout(() => setHitFlash(false), 220)
-          window.setTimeout(() => setStunned(false), HIT_STUN_MS)
+          window.setTimeout(() => setStunned(false), 380)
         }
       }
 
@@ -284,8 +378,12 @@ export default function App() {
       audioRef.current.setHeartbeat(nextBpm, true)
 
       if (prox > 0.7 && !isMelee(prox)) {
-        setStatusLine('It’s closing in. Capture it.')
-      } else if (prox > 0.35 && prox <= 0.7) {
+        setStatusLine(
+          isBossRef.current
+            ? 'Seal faster. It does not hesitate.'
+            : 'It’s closing in. Capture it.',
+        )
+      } else if (prox > 0.35 && prox <= 0.7 && !isBossRef.current) {
         setStatusLine('Don’t look away. Keep it framed.')
       }
 
@@ -298,6 +396,8 @@ export default function App() {
         placedForRef.current = null
         setProximity(0)
         setAggression(0)
+        setCapturePhase(0)
+        setActiveKind(null)
         resetGhost()
         arSessionRef.current?.hideGhost()
         audioRef.current.setPresence(false, 0)
@@ -309,6 +409,21 @@ export default function App() {
 
     return () => clearInterval(id)
   }, [ghostShouldShow, dead, dusk.allowed, resetGhost])
+
+  // Announce boss unlock once
+  const unlockedAnnounced = useRef(false)
+  useEffect(() => {
+    if (!started) return
+    if (bossUnlocked && !bossDefeated && !unlockedAnnounced.current) {
+      unlockedAnnounced.current = true
+      setStatusLine(
+        forceBoss
+          ? 'Force boss armed — next manifestation is the Warden.'
+          : 'All four sealed. Something worse is listening.',
+      )
+    }
+    if (bossDefeated) unlockedAnnounced.current = true
+  }, [bossUnlocked, bossDefeated, started, forceBoss])
 
   const startExperience = async () => {
     setStarted(true)
@@ -339,7 +454,11 @@ export default function App() {
         },
         onAnchorPlaced: (target) => {
           setAnchored(true)
-          setStatusLine(`Anchored. The ${target} thing is in the room.`)
+          setStatusLine(
+            target === 'boss'
+              ? 'Anchored. The Warden is in the room.'
+              : `Anchored. The ${target} thing is in the room.`,
+          )
         },
         onAnchorLost: () => setAnchored(false),
       })
@@ -357,8 +476,7 @@ export default function App() {
     fallbackVideoRef.current = el
   }, [])
 
-  const capture = () => {
-    if (!sustainedTarget || !ghostShouldShow || dead || !dusk.allowed) return
+  const grabRawStill = (): { dataUrl: string; mode: Capture['mode'] } | null => {
     let dataUrl: string | null = null
     let mode: Capture['mode'] = 'fallback'
 
@@ -377,41 +495,79 @@ export default function App() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
         ctx.fillStyle = 'rgba(10,12,10,0.25)'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
-        const ent = document.querySelector('.horror-entity') as HTMLElement | null
-        if (ent) {
+        const kind = activeKindRef.current
+        if (kind) {
           ctx.save()
           ctx.translate(canvas.width / 2, canvas.height * 0.42)
-          ctx.globalAlpha = 0.7
-          ctx.fillStyle = '#1a1814'
-          ctx.beginPath()
-          ctx.ellipse(0, 0, 60, 90, 0.1, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.fillStyle = '#b8ffe0'
+          ctx.globalAlpha = 0.75
+          if (kind === 'boss') {
+            ctx.fillStyle = '#120808'
+            ctx.beginPath()
+            ctx.ellipse(0, 10, 80, 120, 0.05, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = '#7a2020'
+          } else {
+            ctx.fillStyle = '#1a1814'
+            ctx.beginPath()
+            ctx.ellipse(0, 0, 60, 90, 0.1, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = '#b8ffe0'
+          }
           ctx.font = '12px monospace'
-          ctx.globalAlpha = 0.5
-          ctx.fillText(sustainedTarget, -20, 110)
+          ctx.globalAlpha = 0.55
+          ctx.fillText(kind, -24, 120)
           ctx.restore()
         }
         dataUrl = canvas.toDataURL('image/jpeg', 0.9)
       }
     }
 
-    if (!dataUrl) return
+    if (!dataUrl) return null
+    return { dataUrl, mode }
+  }
+
+  const finishCapture = async (kind: SpiritKind) => {
+    const raw = grabRawStill()
+    if (!raw) return
+
+    const prior = countOfKind(captures, kind)
+    const lorePick = pickLore(kind, prior)
+    let polaroidUrl = raw.dataUrl
+    try {
+      polaroidUrl = await makePolaroidStill(raw.dataUrl, kind, lorePick.name)
+    } catch {
+      /* keep raw */
+    }
 
     const cap: Capture = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      target: sustainedTarget,
+      target: kind,
       timestamp: Date.now(),
-      dataUrl,
-      mode,
+      dataUrl: polaroidUrl,
+      mode: raw.mode,
+      lore: {
+        name: lorePick.name,
+        epithet: lorePick.epithet,
+        trappedNote: lorePick.trappedNote,
+      },
+      loreVariant: lorePick.variant,
+      isBoss: kind === 'boss',
     }
     setCaptures((c) => [cap, ...c])
-    setStatusLine(`Captured the ${sustainedTarget} presence.`)
+
+    const profile = kind === 'boss' ? BOSS_TENSION : NORMAL_TENSION
+    setStatusLine(
+      kind === 'boss'
+        ? `Sealed: ${lorePick.name}. The threshold goes quiet.`
+        : `Polaroid sealed — ${lorePick.name}.`,
+    )
     appearAtRef.current = null
     meleeEnteredAtRef.current = null
     setAggression(0)
     setProximity(0)
-    const healed = Math.min(MAX_HEALTH, healthRef.current + CAPTURE_HEAL)
+    setCapturePhase(0)
+    setActiveKind(null)
+    const healed = Math.min(MAX_HEALTH, healthRef.current + profile.captureHeal)
     healthRef.current = healed
     setHealth(healed)
     setBpm(bpmFromState(0, healed))
@@ -420,6 +576,52 @@ export default function App() {
     placedForRef.current = null
     audioRef.current.setPresence(false, 0)
     audioRef.current.setHeartbeat(56, false)
+
+    if (kind !== 'boss') {
+      const nextUnique = uniqueTargetTypes([cap, ...captures]).size
+      if (nextUnique >= BOSS_UNLOCK_UNIQUE && !hasBossCapture([cap, ...captures])) {
+        window.setTimeout(() => {
+          setStatusLine('All four sealed. Something worse is listening.')
+        }, 1200)
+      }
+    }
+  }
+
+  const capture = () => {
+    if (!sustainedTarget || !ghostShouldShow || dead || !dusk.allowed || capturing)
+      return
+    const kind = activeKindRef.current
+    if (!kind) return
+
+    if (kind === 'boss') {
+      const phase = capturePhaseRef.current
+      if (phase < BOSS_CAPTURE_PHASES - 1) {
+        const next = phase + 1
+        capturePhaseRef.current = next
+        setCapturePhase(next)
+        // Knock the Warden back briefly
+        if (appearAtRef.current != null) {
+          const now = performance.now()
+          const elapsed = now - appearAtRef.current
+          const newElapsed = Math.max(
+            0,
+            elapsed - BOSS_PHASE_KNOCKBACK * BOSS_TENSION.approachMs,
+          )
+          appearAtRef.current = now - newElapsed
+        }
+        meleeEnteredAtRef.current = null
+        setStatusLine(
+          next === 1
+            ? 'First seal holds — keep the frame.'
+            : 'Second seal holds — one more.',
+        )
+        audioRef.current.playHit()
+        return
+      }
+    }
+
+    setCapturing(true)
+    void finishCapture(kind).finally(() => setCapturing(false))
   }
 
   const retryAfterDeath = () => {
@@ -432,6 +634,8 @@ export default function App() {
     setAggression(0)
     setHitFlash(false)
     setStunned(false)
+    setCapturePhase(0)
+    setActiveKind(null)
     appearAtRef.current = null
     meleeEnteredAtRef.current = null
     lastHitAtRef.current = 0
@@ -444,12 +648,30 @@ export default function App() {
     })
   }
 
+  const toggleForceBoss = () => {
+    const next = !forceBoss
+    setForceBoss(next)
+    try {
+      localStorage.setItem('ghost-lens-force-boss', next ? '1' : '0')
+      const url = new URL(window.location.href)
+      if (next) url.searchParams.set('forceBoss', '1')
+      else url.searchParams.delete('forceBoss')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setStatusLine(
+      next
+        ? 'Force boss ON — next manifestation is the Warden.'
+        : 'Force boss OFF.',
+    )
+  }
+
   // Long-press brand → toggle force dusk (dev)
   const onBrandPointerDown = () => {
     longPressRef.current = window.setTimeout(() => {
       const next = !dusk.forceDusk
       dusk.setForceDusk(next)
-      // Clear URL override when turning off so localStorage wins
       try {
         const url = new URL(window.location.href)
         if (!next && url.searchParams.has('forceDusk')) {
@@ -473,16 +695,20 @@ export default function App() {
     }
   }
 
+  const isBoss = activeKind === 'boss'
+
   const modeLabel =
     arMode === 'checking'
       ? 'PROBING…'
       : !dusk.allowed
         ? 'LOCKED — DAY'
-        : arRunning
-          ? 'WEBXR ANCHORED'
-          : arMode === 'webxr'
-            ? 'WEBXR READY'
-            : 'OVERLAY FALLBACK'
+        : isBoss && ghostShouldShow
+          ? 'WARDEN'
+          : arRunning
+            ? 'WEBXR ANCHORED'
+            : arMode === 'webxr'
+              ? 'WEBXR READY'
+              : 'OVERLAY FALLBACK'
 
   if (!started) {
     return (
@@ -493,8 +719,9 @@ export default function App() {
           <p className="boot-blurb">
             Point the rear camera at a <em>tombstone</em>, <em>ring</em>,{' '}
             <em>doll</em>, or <em>lake</em>. Hold the frame. Something may
-            stand where it shouldn’t. Capture it before it closes the distance —
-            hesitate, and you may die of fright.
+            stand where it shouldn’t. Capture it into a polaroid before it
+            closes the distance — hesitate, and you may die of fright. Seal
+            all four to wake the <em>Threshold Warden</em>.
           </p>
           <ul className="boot-list">
             <li>
@@ -508,12 +735,18 @@ export default function App() {
             {arReason && <li className="warn">{arReason}</li>}
             <li>Vision: on-device CLIP zero-shot (throttled)</li>
             <li>
+              Inventory: {captures.length} polaroid
+              {captures.length === 1 ? '' : 's'} · {uniqueSealed}/4 types
+              {bossDefeated ? ' · Warden sealed' : bossUnlocked ? ' · Warden unlocked' : ''}
+            </li>
+            <li>
               Hunt hours: dusk only
               {dusk.status.windowLabel ? ` (${dusk.status.windowLabel} local)` : ''}
               {dusk.status.sunsetLabel && dusk.status.sunsetLabel !== 'none'
                 ? ` · sunset ~${dusk.status.sunsetLabel}`
                 : ''}
               {dusk.forceDusk ? ' · FORCE DUSK' : ''}
+              {forceBoss ? ' · FORCE BOSS' : ''}
             </li>
             {!dusk.allowed && (
               <li className="warn">{dusk.status.reason}</li>
@@ -534,8 +767,16 @@ export default function App() {
           >
             {dusk.forceDusk ? 'Force dusk (test): ON' : 'Force dusk (test): OFF'}
           </button>
+          <button
+            type="button"
+            className={`btn dusk-force-btn ${forceBoss ? 'on' : ''}`}
+            onClick={toggleForceBoss}
+          >
+            {forceBoss ? 'Force boss (test): ON' : 'Force boss (test): OFF'}
+          </button>
           <p className="boot-hint">
-            Dev: append <code>?forceDusk=1</code> or long-press the title in-hunt.
+            Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> · long-press
+            title in-hunt for dusk.
           </p>
           {modelError && <p className="warn">{modelError}</p>}
         </div>
@@ -544,7 +785,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''}`}>
+    <div className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''}`}>
       <canvas
         ref={xrCanvasRef}
         className={`xr-canvas ${arRunning ? 'active' : ''}`}
@@ -573,20 +814,21 @@ export default function App() {
           videoRefAttach={camera.attach}
           videoReady={camera.ready}
           ghostVisible={ghostShouldShow || fleeing}
-          ghostTarget={sustainedTarget ?? lastTargetRef.current}
+          ghostTarget={activeKind ?? sustainedTarget ?? lastTargetRef.current}
           fleeing={fleeing}
           aggression={aggression}
           proximity={proximity}
           hitFlash={hitFlash}
           stunned={stunned}
+          isBoss={isBoss}
           onVideoEl={onVideoEl}
         />
       )}
 
       {arRunning && ghostShouldShow && (
         <div
-          className="ar-threat-flash"
-          style={{ opacity: Math.max(aggression, proximity) * 0.4 }}
+          className={`ar-threat-flash ${isBoss ? 'boss-flash' : ''}`}
+          style={{ opacity: Math.max(aggression, proximity) * (isBoss ? 0.55 : 0.4) }}
         />
       )}
       {arRunning && hitFlash && <div className="hit-overlay ar-hit" aria-hidden />}
@@ -600,7 +842,7 @@ export default function App() {
         modelReady={modelReady}
         loadingMsg={loadingMsg}
         captureDisabled={
-          !dusk.allowed || !ghostShouldShow || !sustainedTarget || dead
+          !dusk.allowed || !ghostShouldShow || !sustainedTarget || dead || capturing
         }
         onCapture={capture}
         onOpenGallery={() => setGalleryOpen(true)}
@@ -620,9 +862,13 @@ export default function App() {
         bpm={bpm}
         proximity={proximity}
         stunned={stunned}
+        isBoss={isBoss && ghostShouldShow}
+        capturePhase={capturePhase}
+        capturePhases={BOSS_CAPTURE_PHASES}
+        uniqueSealed={uniqueSealed}
+        bossUnlocked={bossUnlocked && !bossDefeated}
       />
 
-      {/* Invisible long-press target on brand area for force dusk */}
       <button
         type="button"
         className="brand-longpress"
@@ -637,6 +883,9 @@ export default function App() {
         captures={captures}
         open={galleryOpen}
         onClose={() => setGalleryOpen(false)}
+        uniqueCount={uniqueSealed}
+        bossUnlocked={bossUnlocked}
+        bossDefeated={bossDefeated}
       />
 
       {dead && <DeathScreen onRetry={retryAfterDeath} />}

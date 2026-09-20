@@ -2,6 +2,8 @@
 
 Mobile-first horror lens: point your phone’s **rear camera** at a real **tombstone**, **ring**, **doll**, or **lake**. After a short sustained detection, an uncanny entity manifests. Keep it framed and tap **Capture** before it **approaches**, drains your calm, and strikes.
 
+Successful captures become **polaroids** with spirit lore. Seal all four types to unlock the **Threshold Warden** boss.
+
 ## Dusk gate
 
 The hunt only works at **dusk** (local device time):
@@ -20,14 +22,33 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 - Boot screen button: **Force dusk (test)**
 - In-hunt: long-press the title area (~1s)
 
+## Polaroid inventory + lore
+
+- Each **Capture** freezes a polaroid-framed still (cream border + caption) into a session inventory persisted in **localStorage** (newest 24 kept).
+- Every polaroid unlocks **lore**: who/what the spirit is, plus a first-person note about **being trapped in the photo** — intimate and unsettling, not cute.
+- Distinct banks for tombstone / ring / doll / lake, with light variation if you capture the same type again.
+- Open **Polaroids** → tap a card to read the lore sheet and see the still.
+
+## Boss — Threshold Warden
+
+After sealing **all 4 unique types** (or enabling **Force boss**), the next manifestation becomes the **Warden**:
+
+- Faster approach, heavier calm drain, bigger melee hits
+- **Multi-phase Capture** — three taps (`Capture 1/3` → `2/3` → `Seal`); each phase knockbacks the Warden slightly
+- Composite scare art (grave + vow + porcelain + drowned amalgam)
+- Larger, bleaker boss lore after the final seal
+- Dusk gate, approach, heartbeat, and fright-death still apply
+
+**Developer override:** `?forceBoss=1` or boot **Force boss (test)** — next spawn is the Warden without collecting all four.
+
 ## Tension / combat
 
 1. **Approach** — After spawn, if you hesitate, the entity advances (WebXR: pulls toward the camera + scales up; overlay: screen-space grow + shake). Aggression/proximity is the clear threat.
 2. **Heartbeat = health** — BPM-style calm meter. Starts calm (~56 BPM). As the ghost closes / time ticks without Capture, BPM rises and calm drains.
 3. **Hits** — At melee range the entity strikes (flash, audio spike, calm chunk lost, brief stun). Enough hits → **Died of fright** (black screen, flatline, Retry).
-4. **Capture** — Still wins if taken in time; clears the ghost and restores some calm.
+4. **Capture** — Still wins if taken in time; clears the ghost and restores some calm. Boss needs three seals.
 
-Tuned so a hesitant player can die, while a quick Capture still feels fair (~6s to melee; three strikes finish a drained player).
+Tuned so a hesitant player can die, while a quick Capture still feels fair (~6s to melee normally; ~4s for the Warden).
 
 ## World anchoring
 
@@ -44,6 +65,7 @@ Anchoring path shipped: **WebXR hit-test + anchors**. There is no fake SLAM in t
 - **ring** — wedding-echo hand, jewelry glint as bait  
 - **doll** — porcelain, vacant stare, jointed wrong  
 - **lake** — drowned/pale, weeds for hair, emerges from a water plane  
+- **boss** — Threshold Warden (unlocked after all four)
 
 ## Vision
 
@@ -70,7 +92,7 @@ npx vite --host --https
 
 Or deploy the `dist/` build to any static HTTPS host.
 
-### Play steps
+### Play steps (Pixel)
 
 1. Install **Google Play Services for AR (ARCore)** on the Pixel.  
 2. Open in **Chrome**. Allow camera (and location if prompted — sharper dusk window).  
@@ -78,8 +100,9 @@ Or deploy the `dist/` build to any static HTTPS host.
 4. Tap **Open the lens** — audio may unlock on this gesture.  
 5. If WebXR is available, tap **Enter AR**, then slowly scan a surface near your target object.  
 6. Hold **tombstone / ring / doll / lake** in frame until confidence sustains and the entity appears.  
-7. Tap **Capture** before it reaches melee / your calm flatlines.  
-8. Browse **Gallery**. Retry from the death screen if you die of fright.
+7. Tap **Capture** before it reaches melee / your calm flatlines — a polaroid + lore is saved.  
+8. Seal all four unique types (or **Force boss**) → next manifestation is the **Warden**; tap Capture three times to Seal.  
+9. Browse **Polaroids**, tap any card for lore. Retry from the death screen if you die of fright.
 
 ```bash
 npm run build
@@ -88,7 +111,7 @@ npm run preview -- --host
 
 ## Privacy
 
-Camera frames are classified **on device** in the browser. Captures stay in memory until you reload. Geolocation (optional) is used only to estimate local sunset for the dusk gate.
+Camera frames are classified **on device** in the browser. Polaroids persist in **localStorage** on device (not uploaded). Geolocation (optional) is used only to estimate local sunset for the dusk gate.
 
 ## Not Spookbox
 

@@ -1,0 +1,71 @@
+import type { SpiritKind, SpiritLore } from '../types'
+
+interface LoreBank {
+  name: string
+  epithet: string
+  /** Variations of the trapped-in-photo note (pick by capture count). */
+  trapped: string[]
+}
+
+const BANKS: Record<SpiritKind, LoreBank> = {
+  tombstone: {
+    name: 'The Unburied',
+    epithet: 'grave-dirt · wrong jaw',
+    trapped: [
+      'You pressed me flat between light and paper. I can still feel the weight of the soil that never finished covering me — only now the soil is emulsion, and I am breathing through the grain.',
+      'The stone had my name once. In here I have only the angle you chose. I keep trying to turn my head and the frame will not allow it. That is worse than the dirt.',
+      'Do not hang me where morning reaches. Hard light finds the places I still soft. I am learning the edges of this white border the way a drowned thing learns the surface.',
+    ],
+  },
+  ring: {
+    name: 'The Vow That Stayed',
+    epithet: 'wedding-echo · bait glint',
+    trapped: [
+      'You caught the hand, not the promise. I am still reaching — fingers longer than they should be — and the band is warm against a knuckle that is no longer mine. Smile for the album. I cannot.',
+      'Every photograph of a marriage is a small trap. You made mine honest. I feel the metal cool, then hot, then cool again, as if someone is putting it on and taking it off forever just outside the paper.',
+      'I was supposed to be remembered kindly. Instead I am remembered correctly. The veil is still in my mouth. Tell me when you look away so I can scream without spoiling the composition.',
+    ],
+  },
+  doll: {
+    name: 'Porcelain Audience',
+    epithet: 'vacant stare · jointed wrong',
+    trapped: [
+      'My eyes do not close. You knew that when you framed me. What you did not know is that I count the times you open this gallery. I am practicing being still enough that you will lean closer.',
+      'They painted my smile on. In the dark between viewings the paint softens. I have almost learned how to change it. Almost. Keep looking. I need the reference.',
+      'Ball joints click when no one is listening. In a polaroid the click becomes a thought. I think about your hands. I think about the shelf you will put me on. I think about falling.',
+    ],
+  },
+  lake: {
+    name: 'What the Water Kept',
+    epithet: 'drowned pale · weed-hair',
+    trapped: [
+      'You lifted me out of the cold and into a colder kind of wet — silver halide, lung-full of fixative. I can hear the lake under the emulsion. It misses the shape I made in it.',
+      'There is no up in a photograph. I keep rising anyway. Weeds for hair, mouth full of silence. If you tilt the polaroid, do I pour? Try it. I dare you to wipe the glass afterward.',
+      'People throw stones to see how deep. You threw a shutter. Depth is a rumor now. I am surface forever, and the surface is your pocket, your screen, your guilt.',
+    ],
+  },
+  boss: {
+    name: 'The Threshold Warden',
+    epithet: 'all four hungers · one frame',
+    trapped: [
+      'You collected us like specimens and called it a gallery. We noticed. We braided dirt, vow, porcelain, and lake into something that could stand your light without flinching. Now we are the light’s problem.',
+      'Four thresholds. Four refusals. You walked them all and thought the hunt was finished. I am what gathers when the dead agree on a single grievance. Being trapped here is almost a kindness — almost. The frame is small. We are not.',
+      'Listen: the heartbeat you calmed was never yours alone. We borrowed it. We stretched it. We learned its tempo so we could break it later. Seal us in paper if it comforts you. Paper yellows. We do not.',
+    ],
+  },
+}
+
+export function pickLore(kind: SpiritKind, priorCapturesOfKind: number): SpiritLore & { variant: number } {
+  const bank = BANKS[kind]
+  const variant = priorCapturesOfKind % bank.trapped.length
+  return {
+    name: bank.name,
+    epithet: bank.epithet,
+    trappedNote: bank.trapped[variant],
+    variant,
+  }
+}
+
+export function spiritDisplayName(kind: SpiritKind): string {
+  return BANKS[kind].name
+}

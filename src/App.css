@@ -490,8 +490,9 @@ html, body, #root {
 .gallery-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
+  gap: 12px;
 }
 .gallery-header h2 {
   margin: 0;
@@ -500,38 +501,131 @@ html, body, #root {
   font-weight: normal;
   color: var(--acid);
 }
+.gallery-sub {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
 .gallery-empty { color: var(--muted); font-size: 13px; }
-.gallery-grid {
+
+.polaroid-grid {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 8px 4px 40px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 18px 12px;
 }
-.gallery-card {
-  background: #101210;
-  border: 1px solid #1e2820;
+.polaroid-card {
+  display: block;
+  width: 100%;
+  padding: 10px 10px 14px;
+  background: #ebe4d6;
+  border: none;
+  border-radius: 2px;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.35),
+    0 10px 24px rgba(0,0,0,0.45);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  text-align: left;
 }
-.gallery-card img {
+.polaroid-card:active {
+  transform: rotate(0deg) scale(0.98);
+}
+.polaroid-card img {
   display: block;
   width: 100%;
   aspect-ratio: 3/4;
   object-fit: cover;
-  filter: contrast(1.1) saturate(0.8);
+  background: #0a0c0a;
+  filter: contrast(1.08) saturate(0.75);
 }
-.gallery-meta {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.polaroid-caption {
+  display: block;
+  margin-top: 10px;
   font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2a241c;
+  font-family: "Courier New", monospace;
+}
+.polaroid-card.boss-polaroid {
+  background: #d8cfc0;
+  box-shadow:
+    0 0 0 1px rgba(122, 32, 32, 0.35),
+    0 2px 4px rgba(0,0,0,0.4),
+    0 12px 28px rgba(80, 10, 10, 0.45);
+}
+.polaroid-card.boss-polaroid .polaroid-caption {
+  color: #5a1818;
+}
+
+.lore-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0,0,0,0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+}
+.lore-card {
+  width: min(420px, 100%);
+  background: #0e100e;
+  border: 1px solid #2a3228;
+  padding: 14px;
+  max-height: 92vh;
+  overflow: auto;
+}
+.lore-card.boss-lore {
+  border-color: #5a2020;
+  box-shadow: 0 0 40px rgba(100, 20, 20, 0.25);
+}
+.lore-still {
+  display: block;
+  width: 100%;
+  max-height: 42vh;
+  object-fit: contain;
+  background: #080808;
+  margin-bottom: 14px;
+}
+.lore-kicker {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
   color: var(--muted);
 }
-.gallery-meta strong {
+.lore-body h3 {
+  margin: 0 0 4px;
+  font-weight: normal;
+  letter-spacing: 0.12em;
+  font-size: 16px;
+  color: var(--acid);
+}
+.lore-card.boss-lore h3 { color: #e8a090; }
+.lore-epithet {
+  margin: 0 0 14px;
+  font-size: 11px;
+  color: var(--acid-dim);
+}
+.lore-note {
+  margin: 0 0 14px;
+  padding: 0;
+  border: none;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--text);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-style: italic;
+}
+.lore-mode {
+  margin: 0 0 14px;
+  font-size: 10px;
+  color: var(--muted);
 }
 .mode-tag { color: var(--acid-dim); }
 
@@ -835,4 +929,171 @@ html, body, #root {
   border: none;
   background: transparent;
   pointer-events: auto;
+}
+
+
+/* —— Boss / Warden —— */
+.app-boss .ar-threat-flash.boss-flash,
+.boss-flash {
+  background: radial-gradient(circle at 50% 35%, rgba(100, 10, 10, 0.65), transparent 60%);
+}
+.hud-boss .mode-chip {
+  border-color: #8a3030;
+  color: #e8a090;
+}
+.boss-capture {
+  border-color: #c45a3a !important;
+  color: #e8a090 !important;
+  box-shadow: 0 0 22px rgba(196, 90, 58, 0.25) !important;
+}
+.boss-phase-meter {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 4px 12px 0;
+  pointer-events: none;
+}
+.phase-pip {
+  width: 28px;
+  height: 6px;
+  border: 1px solid #5a3030;
+  background: transparent;
+}
+.phase-pip.filled {
+  background: #c45a3a;
+  box-shadow: 0 0 8px rgba(196, 90, 58, 0.5);
+}
+.collection-pill { opacity: 0.75; }
+.lens-stage.boss-stage .vignette {
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(40,0,0,0.8) 100%);
+}
+.horror-entity.boss-entity {
+  width: 200px;
+  height: 280px;
+  filter: contrast(1.25) saturate(0.55) brightness(0.9);
+}
+
+.ent.warden { position: relative; width: 100%; height: 100%; }
+.ent.warden .warden-water {
+  position: absolute;
+  left: 20px; bottom: 8px;
+  width: 160px; height: 40px;
+  border-radius: 50%;
+  background: rgba(20, 40, 50, 0.55);
+  box-shadow: 0 0 20px rgba(40, 80, 90, 0.3);
+}
+.ent.warden .warden-ripple {
+  position: absolute;
+  left: 30px; bottom: 14px;
+  width: 140px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(80, 120, 130, 0.45);
+}
+.ent.warden .warden-torso {
+  position: absolute;
+  left: 48px; top: 70px;
+  width: 100px; height: 130px;
+  background: linear-gradient(165deg, #2a2218, #0a0806);
+  border-radius: 6px 10px 4px 8px;
+  transform: rotate(-3deg);
+  box-shadow: inset 0 -30px 40px rgba(0,0,0,0.6);
+}
+.ent.warden .warden-spine {
+  position: absolute;
+  left: 92px; top: 78px;
+  width: 10px; height: 110px;
+  background: #5a5448;
+  transform: rotate(4deg);
+  opacity: 0.7;
+}
+.ent.warden .warden-skull {
+  position: absolute;
+  left: 52px; top: 28px;
+  width: 52px; height: 58px;
+  background: #6a6458;
+  border-radius: 40% 40% 30% 35%;
+  transform: rotate(-8deg);
+}
+.ent.warden .warden-skull .pit {
+  position: absolute; top: 18px;
+  width: 12px; height: 9px;
+  background: #020201;
+  border-radius: 50%;
+}
+.ent.warden .warden-skull .p1 { left: 8px; }
+.ent.warden .warden-skull .p2 { right: 8px; width: 14px; height: 7px; }
+.ent.warden .warden-skull .jaw {
+  position: absolute;
+  left: 10px; bottom: 4px;
+  width: 32px; height: 12px;
+  background: #4a4440;
+  transform: rotate(22deg);
+}
+.ent.warden .warden-dollface {
+  position: absolute;
+  left: 100px; top: 36px;
+  width: 44px; height: 50px;
+  background: #c8c0b4;
+  border-radius: 45%;
+  opacity: 0.85;
+}
+.ent.warden .warden-dollface .eye {
+  position: absolute;
+  top: 16px; left: 8px;
+  width: 12px; height: 12px;
+  background: #1a3040;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #f0ebe4;
+}
+.ent.warden .warden-dollface .e2 { left: auto; right: 6px; }
+.ent.warden .warden-arm {
+  position: absolute;
+  top: 90px;
+  width: 14px; height: 110px;
+  background: linear-gradient(#2a2218, #1a3028);
+  border-radius: 4px;
+  transform-origin: top center;
+}
+.ent.warden .arm-l { left: 28px; transform: rotate(28deg); }
+.ent.warden .arm-r { right: 22px; transform: rotate(-38deg); background: linear-gradient(#3a5058, #1a3028); }
+.ent.warden .warden-hand {
+  position: absolute;
+  right: 8px; top: 175px;
+  width: 48px; height: 28px;
+  background: #2a2218;
+  border-radius: 4px;
+  transform: rotate(-25deg);
+}
+.ent.warden .warden-hand .ring-glint {
+  position: absolute;
+  right: 8px; top: 6px;
+  width: 14px; height: 14px;
+  border: 2px solid #d4af37;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #a89030;
+  animation: ring-pulse 0.8s ease-in-out infinite;
+}
+@keyframes ring-pulse {
+  0%, 100% { box-shadow: 0 0 6px #a89030; }
+  50% { box-shadow: 0 0 16px #e8c040; }
+}
+.ent.warden .warden-weed {
+  position: absolute;
+  top: 20px;
+  width: 4px; height: 40px;
+  background: #1a3028;
+  border-radius: 2px;
+  transform-origin: top;
+}
+.ent.warden .w1 { left: 70px; transform: rotate(18deg); }
+.ent.warden .w2 { left: 90px; height: 48px; transform: rotate(-12deg); }
+.ent.warden .w3 { left: 110px; transform: rotate(25deg); }
+.ent.warden .warden-spike {
+  position: absolute;
+  left: 40px; top: 60px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 36px solid #2a2218;
+  transform: rotate(-40deg);
 }

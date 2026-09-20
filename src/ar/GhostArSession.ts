@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { TargetType } from '../types'
+import type { SpiritKind } from '../types'
 import {
   animateHorrorEntity,
   createHorrorEntity,
@@ -15,7 +15,7 @@ export type ArSessionStatus =
 
 export interface GhostArCallbacks {
   onStatus?: (s: ArSessionStatus, detail?: string) => void
-  onAnchorPlaced?: (target: TargetType) => void
+  onAnchorPlaced?: (target: SpiritKind) => void
   onAnchorLost?: () => void
 }
 
@@ -37,8 +37,8 @@ export class GhostArSession {
   private approachOffset: THREE.Group | null = null
   private anchor: XRAnchor | null = null
   private anchored = false
-  private pendingTarget: TargetType | null = null
-  private activeTarget: TargetType | null = null
+  private pendingTarget: SpiritKind | null = null
+  private activeTarget: SpiritKind | null = null
   private placeRequested = false
   private fleeing = false
   private callbacks: GhostArCallbacks
@@ -137,7 +137,7 @@ export class GhostArSession {
     this.callbacks.onStatus?.('running')
   }
 
-  private spawnEntity(target: TargetType) {
+  private spawnEntity(target: SpiritKind) {
     if (!this.approachOffset) return
     if (this.entity) {
       this.approachOffset.remove(this.entity)
@@ -163,7 +163,7 @@ export class GhostArSession {
     }
   }
 
-  requestPlace(target: TargetType) {
+  requestPlace(target: SpiritKind) {
     if (this.activeTarget !== target || !this.entity) {
       this.spawnEntity(target)
     }
@@ -268,7 +268,7 @@ export class GhostArSession {
       this.entityRoot.scale,
     )
     // Lake sits on plane; others lift slightly
-    const lift = this.activeTarget === 'lake' ? 0.0 : 0.05
+    const lift = this.activeTarget === 'lake' ? 0.0 : this.activeTarget === 'boss' ? 0.02 : 0.05
     this.entityRoot.position.y += lift
     this.entityRoot.visible = true
     this.entityRoot.updateMatrix()
@@ -301,16 +301,18 @@ export class GhostArSession {
     const dist = this.tmpDir.length()
     if (dist > 0.01) {
       this.tmpDir.normalize()
-      // Move up to ~70% of the gap toward camera at full proximity
-      const pull = Math.min(dist * 0.72, 1.4) * p
+      // Move up to ~70% of the gap toward camera at full proximity (boss farther/faster)
+      const isBoss = this.activeTarget === 'boss'
+      const pull = Math.min(dist * (isBoss ? 0.85 : 0.72), isBoss ? 1.75 : 1.4) * p
       // World direction → root-local offset
       this.tmpDir.applyQuaternion(
         this.entityRoot.quaternion.clone().invert(),
       )
       this.approachOffset.position.copy(this.tmpDir.multiplyScalar(pull))
     }
-    // Scale up as it closes — reads as looming
-    this.approachOffset.scale.setScalar(1 + p * 1.4)
+    // Scale up as it closes — reads as looming (boss looms harder)
+    const bossBoost = this.activeTarget === 'boss' ? 1.25 : 1
+    this.approachOffset.scale.setScalar(1 + p * 1.4 * bossBoost)
   }
 
   private onXRFrame(frame: XRFrame | undefined) {
