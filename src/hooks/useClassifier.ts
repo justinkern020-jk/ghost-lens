@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   CANDIDATE_LABELS,
+  PLAYGROUND_LABELS,
+  COLLECTIBLE_SCENE_LABELS,
+  STRANGER_SCENE_LABELS,
   TARGET_LABELS,
   type DetectionResult,
+  type PlaygroundLabel,
   type TargetType,
 } from '../types'
 
@@ -14,6 +18,9 @@ type ClassifierFn = (
 
 const INFERENCE_INTERVAL_MS = 700
 const CONFIDENCE_THRESHOLD = 0.28
+const PLAYGROUND_CONFIDENCE_THRESHOLD = 0.26
+const STRANGER_CONFIDENCE_THRESHOLD = 0.27
+const COLLECTIBLE_CONFIDENCE_THRESHOLD = 0.26
 const SUSTAIN_MS = 1200
 const FLEE_MS = 1800
 
@@ -25,9 +32,23 @@ export function useClassifier() {
     label: null,
     confidence: 0,
     scores: {},
+    playgroundConfidence: 0,
+    playgroundLabel: null,
+    strangerLabel: null,
+    strangerConfidence: 0,
+    collectibleLabel: null,
+    collectibleConfidence: 0,
   })
   const [sustainedTarget, setSustainedTarget] = useState<TargetType | null>(null)
   const [ghostShouldShow, setGhostShouldShow] = useState(false)
+  const [playgroundDetected, setPlaygroundDetected] = useState(false)
+  const [sustainedPlayground, setSustainedPlayground] = useState(false)
+  const [sustainedStrangerLabel, setSustainedStrangerLabel] = useState<string | null>(
+    null,
+  )
+  const [sustainedCollectibleLabel, setSustainedCollectibleLabel] = useState<
+    string | null
+  >(null)
 
   const classifierRef = useRef<ClassifierFn | null>(null)
   const busyRef = useRef(false)
@@ -35,6 +56,14 @@ export function useClassifier() {
   const sustainStartRef = useRef<number | null>(null)
   const lastSeenRef = useRef<number | null>(null)
   const currentCandidateRef = useRef<TargetType | null>(null)
+  const playgroundSustainRef = useRef<number | null>(null)
+  const lastPlaygroundSeenRef = useRef<number | null>(null)
+  const strangerSustainRef = useRef<number | null>(null)
+  const strangerCandidateRef = useRef<string | null>(null)
+  const lastStrangerSeenRef = useRef<number | null>(null)
+  const collectibleSustainRef = useRef<number | null>(null)
+  const collectibleCandidateRef = useRef<string | null>(null)
+  const lastCollectibleSeenRef = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -107,6 +136,36 @@ export function useClassifier() {
         }
       }
 
+      let bestPlayground: PlaygroundLabel | null = null
+      let bestPlaygroundScore = 0
+      for (const p of PLAYGROUND_LABELS) {
+        const s = scores[p] ?? 0
+        if (s > bestPlaygroundScore) {
+          bestPlaygroundScore = s
+          bestPlayground = p
+        }
+      }
+
+      let bestStranger: string | null = null
+      let bestStrangerScore = 0
+      for (const sLabel of STRANGER_SCENE_LABELS) {
+        const s = scores[sLabel] ?? 0
+        if (s > bestStrangerScore) {
+          bestStrangerScore = s
+          bestStranger = sLabel
+        }
+      }
+
+      let bestCollectible: string | null = null
+      let bestCollectibleScore = 0
+      for (const cLabel of COLLECTIBLE_SCENE_LABELS) {
+        const s = scores[cLabel] ?? 0
+        if (s > bestCollectibleScore) {
+          bestCollectibleScore = s
+          bestCollectible = cLabel
+        }
+      }
+
       const negativeMax = Math.max(
         scores['empty room'] ?? 0,
         scores['plain wall'] ?? 0,
@@ -120,12 +179,106 @@ export function useClassifier() {
         bestScore >= CONFIDENCE_THRESHOLD &&
         bestScore > negativeMax * 0.95
 
+      const playgroundHit =
+        bestPlayground &&
+        bestPlaygroundScore >= PLAYGROUND_CONFIDENCE_THRESHOLD &&
+        bestPlaygroundScore > negativeMax * 0.9
+
+      const strangerHit =
+        bestStranger &&
+        bestStrangerScore >= STRANGER_CONFIDENCE_THRESHOLD &&
+        bestStrangerScore > negativeMax * 0.88 &&
+        // Prefer not to fire strangers while a ghost target is winning hard
+        (!accepted || bestStrangerScore >= bestScore * 0.92)
+
+      const collectibleHit =
+        bestCollectible &&
+        bestCollectibleScore >= COLLECTIBLE_CONFIDENCE_THRESHOLD &&
+        bestCollectibleScore > negativeMax * 0.85
+
       const label = accepted ? bestTarget : null
       const confidence = accepted ? bestScore : bestScore
 
-      setDetection({ label, confidence, scores })
+      setDetection({
+        label,
+        confidence,
+        scores,
+        playgroundConfidence: bestPlaygroundScore,
+        playgroundLabel: playgroundHit ? bestPlayground : null,
+        strangerLabel: strangerHit ? bestStranger : null,
+        strangerConfidence: bestStrangerScore,
+        collectibleLabel: collectibleHit ? bestCollectible : null,
+        collectibleConfidence: bestCollectibleScore,
+      })
+      setPlaygroundDetected(!!playgroundHit)
 
       const t = performance.now()
+
+      if (playgroundHit) {
+        lastPlaygroundSeenRef.current = t
+        if (!playgroundSustainRef.current) playgroundSustainRef.current = t
+        if (
+          playgroundSustainRef.current &&
+          t - playgroundSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedPlayground(true)
+        }
+      } else {
+        playgroundSustainRef.current = null
+        if (
+          lastPlaygroundSeenRef.current &&
+          t - lastPlaygroundSeenRef.current > FLEE_MS
+        ) {
+          setSustainedPlayground(false)
+        }
+      }
+
+      if (strangerHit && bestStranger) {
+        lastStrangerSeenRef.current = t
+        if (strangerCandidateRef.current !== bestStranger) {
+          strangerCandidateRef.current = bestStranger
+          strangerSustainRef.current = t
+          setSustainedStrangerLabel(null)
+        } else if (
+          strangerSustainRef.current &&
+          t - strangerSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedStrangerLabel(bestStranger)
+        }
+      } else {
+        strangerCandidateRef.current = null
+        strangerSustainRef.current = null
+        if (
+          lastStrangerSeenRef.current &&
+          t - lastStrangerSeenRef.current > FLEE_MS
+        ) {
+          setSustainedStrangerLabel(null)
+        }
+      }
+
+      if (collectibleHit && bestCollectible) {
+        lastCollectibleSeenRef.current = t
+        if (collectibleCandidateRef.current !== bestCollectible) {
+          collectibleCandidateRef.current = bestCollectible
+          collectibleSustainRef.current = t
+          setSustainedCollectibleLabel(null)
+        } else if (
+          collectibleSustainRef.current &&
+          t - collectibleSustainRef.current >= SUSTAIN_MS
+        ) {
+          setSustainedCollectibleLabel(bestCollectible)
+        }
+      } else {
+        collectibleCandidateRef.current = null
+        collectibleSustainRef.current = null
+        if (
+          lastCollectibleSeenRef.current &&
+          t - lastCollectibleSeenRef.current > FLEE_MS
+        ) {
+          setSustainedCollectibleLabel(null)
+        }
+      }
+
       if (label) {
         lastSeenRef.current = t
         if (currentCandidateRef.current !== label) {
@@ -163,6 +316,22 @@ export function useClassifier() {
     lastSeenRef.current = null
   }, [])
 
+  const forceManifest = useCallback(() => {
+    setGhostShouldShow(true)
+  }, [])
+
+  const clearSustainedStranger = useCallback(() => {
+    setSustainedStrangerLabel(null)
+    strangerCandidateRef.current = null
+    strangerSustainRef.current = null
+  }, [])
+
+  const clearSustainedCollectible = useCallback(() => {
+    setSustainedCollectibleLabel(null)
+    collectibleCandidateRef.current = null
+    collectibleSustainRef.current = null
+  }, [])
+
   return {
     ready,
     loadingMsg,
@@ -170,7 +339,14 @@ export function useClassifier() {
     detection,
     sustainedTarget,
     ghostShouldShow,
+    playgroundDetected,
+    sustainedPlayground,
+    sustainedStrangerLabel,
+    sustainedCollectibleLabel,
     classifyFrame,
     resetGhost,
+    forceManifest,
+    clearSustainedStranger,
+    clearSustainedCollectible,
   }
 }

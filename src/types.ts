@@ -1,11 +1,71 @@
 export const TARGET_LABELS = ['tombstone', 'ring', 'doll', 'lake'] as const
 export type TargetType = (typeof TARGET_LABELS)[number]
 
-/** All spirit kinds including the unlocked boss. */
-export type SpiritKind = TargetType | 'boss'
+/** All spirit kinds including mid-boss Warden and endgame Demon. */
+export type SpiritKind = TargetType | 'boss' | 'demon'
+
+/** CLIP labels that suggest a playground scene (endgame location). */
+export const PLAYGROUND_LABELS = [
+  'playground',
+  'swing set',
+  'slide',
+  'merry-go-round',
+  'sandbox',
+] as const
+export type PlaygroundLabel = (typeof PLAYGROUND_LABELS)[number]
+
+/** Real-world props that can summon mysterious strangers (clue givers). */
+export const STRANGER_SCENE_LABELS = [
+  'church',
+  'cross',
+  'candle',
+  'bible',
+  'book',
+  'clock',
+  'shoes',
+  'swing',
+  'bouquet',
+  'flowers',
+  'key',
+  'umbrella',
+  'mirror',
+] as const
+
+
+/** Real-world props that unlock hidden lore collectibles (ghost-tied scraps). */
+export const COLLECTIBLE_SCENE_LABELS = [
+  'wilted flowers',
+  'iron fence',
+  'angel statue',
+  'obituary',
+  'newspaper',
+  'champagne glass',
+  'wine glass',
+  'jewelry box',
+  'wedding dress',
+  'ring box',
+  'necklace',
+  'toy chest',
+  'crib',
+  'music box',
+  "child's shoe",
+  'teddy bear',
+  'dollhouse',
+  'toy',
+  'pier',
+  'boat',
+  'fishing rod',
+  'reeds',
+  'life vest',
+  'wet shoes',
+  'tackle box',
+] as const
 
 export const CANDIDATE_LABELS = [
   ...TARGET_LABELS,
+  ...PLAYGROUND_LABELS,
+  ...STRANGER_SCENE_LABELS,
+  ...COLLECTIBLE_SCENE_LABELS,
   'empty room',
   'plain wall',
   'person',
@@ -17,6 +77,14 @@ export interface DetectionResult {
   label: TargetType | null
   confidence: number
   scores: Record<string, number>
+  /** Best playground-ish label score (scene detect). */
+  playgroundConfidence?: number
+  playgroundLabel?: PlaygroundLabel | null
+  /** Best mysterious-stranger prop label. */
+  strangerLabel?: string | null
+  strangerConfidence?: number
+  collectibleLabel?: string | null
+  collectibleConfidence?: number
 }
 
 export interface SpiritLore {
@@ -39,6 +107,7 @@ export interface Capture {
   /** Which lore variation index was used. */
   loreVariant: number
   isBoss?: boolean
+  isDemon?: boolean
 }
 
 export type ArMode = 'checking' | 'webxr' | 'fallback' | 'unsupported'
@@ -51,8 +120,21 @@ export interface GhostState {
   anchored: boolean
 }
 
-/** Unique target types required before the boss may spawn. */
+/** Unique target types required before the Warden / Playground may unlock. */
 export const BOSS_UNLOCK_UNIQUE = TARGET_LABELS.length
 
-/** Capture taps required to seal the boss. */
+/** Capture taps required to seal the Threshold Warden (mid-boss). */
 export const BOSS_CAPTURE_PHASES = 3
+
+/** Capture taps required to seal the Playground Demon (endgame). */
+export const DEMON_CAPTURE_PHASES = 5
+
+export function isMultiSealKind(kind: SpiritKind | null): kind is 'boss' | 'demon' {
+  return kind === 'boss' || kind === 'demon'
+}
+
+export function capturePhasesFor(kind: SpiritKind | null): number {
+  if (kind === 'demon') return DEMON_CAPTURE_PHASES
+  if (kind === 'boss') return BOSS_CAPTURE_PHASES
+  return 1
+}

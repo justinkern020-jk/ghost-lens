@@ -76,7 +76,8 @@ export function makePolaroidStill(
 
         ctx.fillStyle = '#6a5e4e'
         ctx.font = '11px "Courier New", monospace'
-        const kindLabel = kind === 'boss' ? 'THRESHOLD' : kind.toUpperCase()
+        const kindLabel =
+          kind === 'demon' ? 'PLAYGROUND' : kind === 'boss' ? 'THRESHOLD' : kind.toUpperCase()
         ctx.fillText(kindLabel, framePad, capY + 18)
 
         // Date stamp look

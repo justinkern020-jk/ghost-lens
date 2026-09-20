@@ -1,4 +1,4 @@
-import type { DetectionResult, TargetType } from '../types'
+import type { Capture, DetectionResult, TargetType } from '../types'
 
 interface Props {
   modeLabel: string
@@ -22,11 +22,19 @@ interface Props {
   proximity: number
   stunned?: boolean
   isBoss?: boolean
-  /** Boss multi-phase capture progress 0..phases */
+  isDemon?: boolean
+  /** Multi-phase capture progress 0..phases */
   capturePhase?: number
   capturePhases?: number
   uniqueSealed?: number
   bossUnlocked?: boolean
+  playgroundUnlocked?: boolean
+  playgroundReady?: boolean
+  demonDefeated?: boolean
+  /** Polaroids laid into the seal ritual during demon fight */
+  ritualPolaroids?: Capture[]
+  onArrivePlayground?: () => void
+  showArrivePlayground?: boolean
 }
 
 export function Hud({
@@ -49,24 +57,49 @@ export function Hud({
   proximity,
   stunned,
   isBoss,
+  isDemon,
   capturePhase = 0,
   capturePhases = 1,
   uniqueSealed = 0,
   bossUnlocked = false,
+  playgroundUnlocked = false,
+  playgroundReady = false,
+  demonDefeated = false,
+  ritualPolaroids = [],
+  onArrivePlayground,
+  showArrivePlayground = false,
 }: Props) {
   const pct = Math.round(detection.confidence * 100)
   const healthPct = Math.round(Math.max(0, Math.min(1, health)) * 100)
   const beatSec = Math.max(0.28, 60 / Math.max(bpm, 40))
-  const critical = health < 0.35 || proximity > 0.85 || !!isBoss
+  const endgame = !!(isBoss || isDemon)
+  const critical = health < 0.35 || proximity > 0.85 || endgame
 
-  const captureLabel = isBoss
+  const captureLabel = isDemon
     ? capturePhase >= capturePhases - 1
       ? 'Seal'
-      : `Capture ${capturePhase + 1}/${capturePhases}`
-    : 'Capture'
+      : `Ritual ${capturePhase + 1}/${capturePhases}`
+    : isBoss
+      ? capturePhase >= capturePhases - 1
+        ? 'Seal'
+        : `Capture ${capturePhase + 1}/${capturePhases}`
+      : 'Capture'
+
+  const calmLabel = isDemon
+    ? 'DEMON'
+    : isBoss
+      ? 'WARDEN'
+      : healthPct >= 70
+        ? 'CALM'
+        : healthPct >= 40
+          ? 'ELEVATED'
+          : 'PANIC'
 
   return (
-    <div className={`hud ${isBoss ? 'hud-boss' : ''}`} id="ar-overlay">
+    <div
+      className={`hud ${isBoss ? 'hud-boss' : ''} ${isDemon ? 'hud-demon' : ''}`}
+      id="ar-overlay"
+    >
       <div className="hud-top">
         <div className="brand">
           <span className="brand-mark">◈</span>
@@ -98,25 +131,33 @@ export function Hud({
           </svg>
         </div>
         <div className="calm-label">
-          {isBoss
-            ? 'WARDEN'
-            : healthPct >= 70
-              ? 'CALM'
-              : healthPct >= 40
-                ? 'ELEVATED'
-                : 'PANIC'}
+          {calmLabel}
           {proximity > 0.5 && ghostVisible ? ' · APPROACHING' : ''}
           {stunned ? ' · STUNNED' : ''}
         </div>
       </div>
 
-      {isBoss && ghostVisible && (
+      {endgame && ghostVisible && (
         <div className="boss-phase-meter" aria-label="Seal progress">
           {Array.from({ length: capturePhases }, (_, i) => (
             <span
               key={i}
-              className={`phase-pip ${i < capturePhase ? 'filled' : ''}`}
+              className={`phase-pip ${i < capturePhase ? 'filled' : ''} ${isDemon ? 'demon-pip' : ''}`}
             />
+          ))}
+        </div>
+      )}
+
+      {isDemon && ghostVisible && ritualPolaroids.length > 0 && (
+        <div className="ritual-strip" aria-label="Polaroids in the seal">
+          {ritualPolaroids.map((p, i) => (
+            <div
+              key={p.id}
+              className={`ritual-shot ${i < capturePhase ? 'burned' : 'waiting'}`}
+              title={p.lore.name}
+            >
+              <img src={p.dataUrl} alt={p.lore.name} />
+            </div>
           ))}
         </div>
       )}
@@ -127,7 +168,11 @@ export function Hud({
         )}
         {modelReady && (
           <div className="status-pill">
-            {isBoss && ghostVisible ? (
+            {isDemon && ghostVisible ? (
+              <>
+                <strong>The Empty Seat</strong> at the playground · burn the photographs
+              </>
+            ) : isBoss && ghostVisible ? (
               <>
                 <strong>Threshold Warden</strong> manifested · seal it in phases
               </>
@@ -138,10 +183,16 @@ export function Hud({
                 {sustained && ghostVisible && anchored && ' · anchored'}
                 {sustained && ghostVisible && !anchored && ' · manifested'}
               </>
+            ) : detection.playgroundLabel ? (
+              <>
+                Sensing <strong>{detection.playgroundLabel}</strong> · playground
+                {playgroundUnlocked ? ' · endgame ground' : ''}
+              </>
             ) : (
               <>
                 Scanning for tombstone · ring · doll · lake · {pct}% peak
                 {bossUnlocked ? ' · warden unlocked' : ''}
+                {playgroundUnlocked && !demonDefeated ? ' · playground unlocked' : ''}
               </>
             )}
           </div>
@@ -149,8 +200,25 @@ export function Hud({
         {statusLine && <div className="status-pill dim">{statusLine}</div>}
         <div className="status-pill dim collection-pill">
           Sealed types {uniqueSealed}/4
-          {bossUnlocked ? (isBoss ? ' · FIGHT' : ' · boss ready') : ''}
+          {bossUnlocked ? (isBoss ? ' · WARDEN FIGHT' : ' · warden ready') : ''}
+          {playgroundUnlocked && !demonDefeated
+            ? playgroundReady
+              ? isDemon
+                ? ' · DEMON FIGHT'
+                : ' · playground ready'
+              : ' · bring photos to playground'
+            : ''}
+          {demonDefeated ? ' · demon sealed' : ''}
         </div>
+        {showArrivePlayground && onArrivePlayground && (
+          <button
+            type="button"
+            className="btn arrive-playground-btn"
+            onClick={onArrivePlayground}
+          >
+            I&apos;ve arrived at the playground
+          </button>
+        )}
       </div>
 
       <div className="hud-bottom">
@@ -163,7 +231,7 @@ export function Hud({
         </button>
         <button
           type="button"
-          className={`btn capture-btn ${isBoss ? 'boss-capture' : ''}`}
+          className={`btn capture-btn ${isBoss ? 'boss-capture' : ''} ${isDemon ? 'demon-capture' : ''}`}
           disabled={captureDisabled}
           onClick={onCapture}
         >

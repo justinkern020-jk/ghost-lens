@@ -1,4 +1,5 @@
-import type { Capture } from '../types'
+import type { Capture, TargetType } from '../types'
+import { TARGET_LABELS } from '../types'
 
 const STORAGE_KEY = 'ghost-lens-polaroids-v1'
 
@@ -34,7 +35,7 @@ export function savePolaroids(captures: Capture[]): void {
 export function uniqueTargetTypes(captures: Capture[]): Set<string> {
   const s = new Set<string>()
   for (const c of captures) {
-    if (c.target !== 'boss') s.add(c.target)
+    if (c.target !== 'boss' && c.target !== 'demon') s.add(c.target)
   }
   return s
 }
@@ -45,4 +46,24 @@ export function countOfKind(captures: Capture[], kind: string): number {
 
 export function hasBossCapture(captures: Capture[]): boolean {
   return captures.some((c) => c.target === 'boss' || c.isBoss)
+}
+
+export function hasDemonCapture(captures: Capture[]): boolean {
+  return captures.some((c) => c.target === 'demon' || c.isDemon)
+}
+
+/** One polaroid of each base type (for ritual layout / unlock checks). */
+export function polaroidsForRitual(captures: Capture[]): Capture[] {
+  const picked: Capture[] = []
+  for (const t of TARGET_LABELS) {
+    const found = captures.find((c) => c.target === t)
+    if (found) picked.push(found)
+  }
+  return picked
+}
+
+export function hasCompletePolaroidSet(captures: Capture[]): boolean {
+  return TARGET_LABELS.every((t: TargetType) =>
+    captures.some((c) => c.target === t),
+  )
 }

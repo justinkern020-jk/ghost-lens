@@ -261,6 +261,61 @@ export class DreadAudio {
     o.stop(t + dur + 0.05)
   }
 
+
+  /** Disembodied voice hint — filtered formant-ish whisper bed (no TTS words). */
+  playWhisperHint() {
+    if (!this.ctx || !this.master) return
+    const t = this.ctx.currentTime
+    const ctx = this.ctx
+
+    // Soft noise breath
+    const noise = ctx.createBufferSource()
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 2.2, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.55))
+    }
+    noise.buffer = buf
+    const ng = ctx.createGain()
+    ng.gain.value = 0.0001
+    const nf = ctx.createBiquadFilter()
+    nf.type = 'bandpass'
+    nf.frequency.value = 900
+    nf.Q.value = 0.8
+    noise.connect(nf)
+    nf.connect(ng)
+    ng.connect(this.master)
+    ng.gain.exponentialRampToValueAtTime(0.045, t + 0.25)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 2.0)
+    noise.start(t)
+    noise.stop(t + 2.1)
+
+    // Two detuned formants = wrong vowels
+    for (const [freq, vol, dur] of [
+      [180, 0.035, 1.6],
+      [290, 0.028, 1.4],
+      [420, 0.02, 1.8],
+    ] as const) {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = freq
+      const g = ctx.createGain()
+      g.gain.value = 0.0001
+      const f = ctx.createBiquadFilter()
+      f.type = 'bandpass'
+      f.frequency.value = freq * 1.4
+      f.Q.value = 6
+      o.connect(f)
+      f.connect(g)
+      g.connect(this.master)
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.2)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+      o.frequency.linearRampToValueAtTime(freq * (0.92 + Math.random() * 0.12), t + dur)
+      o.start(t)
+      o.stop(t + dur + 0.05)
+    }
+  }
+
   stop() {
     if (this.clickTimer) clearTimeout(this.clickTimer)
     if (this.voiceTimer) clearTimeout(this.voiceTimer)

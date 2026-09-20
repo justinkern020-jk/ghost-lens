@@ -2,14 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { checkWebXrAr, GhostArSession } from './ar/GhostArSession'
 import { DreadAudio } from './audio/dreadAudio'
 import {
-  BOSS_PHASE_KNOCKBACK,
-  BOSS_TENSION,
   bpmFromState,
   easedProximity,
   isMelee,
   MAX_HEALTH,
-  NORMAL_TENSION,
   proximityFromElapsed,
+  tensionFor,
   type TensionProfile,
 } from './combat/tension'
 import { DeathScreen } from './components/DeathScreen'
@@ -23,14 +21,53 @@ import { makePolaroidStill } from './inventory/makePolaroid'
 import {
   countOfKind,
   hasBossCapture,
+  hasCompletePolaroidSet,
+  hasDemonCapture,
   loadPolaroids,
+  polaroidsForRitual,
   savePolaroids,
   uniqueTargetTypes,
 } from './inventory/polaroidStore'
 import { pickLore } from './lore/spiritLore'
 import {
-  BOSS_CAPTURE_PHASES,
+  favorForCapture,
+  getItemDef,
+  itemStrengthVs,
+  loadFavor,
+  loadOwnedItems,
+  saveFavor,
+  saveOwnedItems,
+  type OccultItemId,
+} from './shop/favorStore'
+import {
+  clueForLabel,
+  findClueById,
+  loadHeardClues,
+  saveHeardClues,
+  STRANGER_CLUES,
+  type StrangerClue,
+} from './shop/strangerClues'
+import { UndertakerCounter } from './shop/UndertakerCounter'
+import { StrangerVignette } from './components/StrangerVignette'
+import { WhisperJournal } from './components/WhisperJournal'
+import { RelicsJournal } from './components/RelicsJournal'
+import {
+  loadHeardVoiceHints,
+  pickVoiceHint,
+  saveHeardVoiceHints,
+  type VoiceHint,
+} from './lore/voiceHints'
+import {
+  collectibleForLabel,
+  findCollectible,
+  loadUnlockedCollectibles,
+  saveUnlockedCollectibles,
+  type LoreCollectible,
+} from './lore/collectibles'
+import {
   BOSS_UNLOCK_UNIQUE,
+  capturePhasesFor,
+  isMultiSealKind,
   type ArMode,
   type Capture,
   type SpiritKind,
@@ -48,6 +85,49 @@ function readForceBoss(): boolean {
   }
 }
 
+function readForcePlayground(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('forcePlayground') === '1') return true
+    return localStorage.getItem('ghost-lens-force-playground') === '1'
+  } catch {
+    return false
+  }
+}
+
+function readForceCollectible(): string | null {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    const id = q.get('forceCollectible')
+    if (id && id.length > 0) return id
+    return localStorage.getItem('ghost-lens-force-collectible')
+  } catch {
+    return null
+  }
+}
+
+function readForceVoiceHint(): string | null {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    const id = q.get('forceVoiceHint')
+    if (id && id.length > 0) return id
+    return localStorage.getItem('ghost-lens-force-voice')
+  } catch {
+    return null
+  }
+}
+
+function readForceStranger(): string | null {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    const id = q.get('forceStranger')
+    if (id && id.length > 0) return id
+    return localStorage.getItem('ghost-lens-force-stranger')
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [arMode, setArMode] = useState<ArMode>('checking')
   const [arReason, setArReason] = useState('')
@@ -56,6 +136,7 @@ export default function App() {
   const [fleeing, setFleeing] = useState(false)
   const [captures, setCaptures] = useState<Capture[]>(() => loadPolaroids())
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [shopOpen, setShopOpen] = useState(false)
   const [statusLine, setStatusLine] = useState('')
   const [aggression, setAggression] = useState(0)
   const [proximity, setProximity] = useState(0)
@@ -66,9 +147,28 @@ export default function App() {
   const [dead, setDead] = useState(false)
   const [started, setStarted] = useState(false)
   const [forceBoss, setForceBoss] = useState(readForceBoss)
+  const [forcePlayground, setForcePlayground] = useState(readForcePlayground)
+  const [playgroundArrived, setPlaygroundArrived] = useState(false)
   const [activeKind, setActiveKind] = useState<SpiritKind | null>(null)
   const [capturePhase, setCapturePhase] = useState(0)
   const [capturing, setCapturing] = useState(false)
+  const [favor, setFavor] = useState(() => loadFavor())
+  const [ownedItems, setOwnedItems] = useState<OccultItemId[]>(() => loadOwnedItems())
+  const [equippedItem, setEquippedItem] = useState<OccultItemId | null>(null)
+  const [itemSpentThisFight, setItemSpentThisFight] = useState(false)
+  const [heardClues, setHeardClues] = useState<Set<string>>(() => loadHeardClues())
+  const [activeClue, setActiveClue] = useState<StrangerClue | null>(null)
+  const [heardVoiceHints, setHeardVoiceHints] = useState<Set<string>>(() =>
+    loadHeardVoiceHints(),
+  )
+  const [activeVoice, setActiveVoice] = useState<VoiceHint | null>(null)
+  const [journalOpen, setJournalOpen] = useState(false)
+  const [relicsOpen, setRelicsOpen] = useState(false)
+  const [unlockedCollectibles, setUnlockedCollectibles] = useState<Set<string>>(
+    () => loadUnlockedCollectibles(),
+  )
+  const [collectibleToast, setCollectibleToast] = useState<string | null>(null)
+  const voiceQueuedRef = useRef(false)
 
   const xrCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const arSessionRef = useRef<GhostArSession | null>(null)
@@ -84,7 +184,9 @@ export default function App() {
   const longPressRef = useRef<number | null>(null)
   const activeKindRef = useRef<SpiritKind | null>(null)
   const capturePhaseRef = useRef(0)
-  const isBossRef = useRef(false)
+  const hushUntilRef = useRef(0)
+  const drainHaltUntilRef = useRef(0)
+  const approachSlowUntilRef = useRef(0)
 
   const dusk = useDuskGate()
 
@@ -93,16 +195,43 @@ export default function App() {
     [captures],
   )
   const bossDefeated = useMemo(() => hasBossCapture(captures), [captures])
+  const demonDefeated = useMemo(() => hasDemonCapture(captures), [captures])
+  const polaroidSetComplete = useMemo(
+    () => hasCompletePolaroidSet(captures),
+    [captures],
+  )
   const bossUnlocked =
     forceBoss || uniqueSealed >= BOSS_UNLOCK_UNIQUE
+  const playgroundUnlocked =
+    forcePlayground || polaroidSetComplete || uniqueSealed >= BOSS_UNLOCK_UNIQUE
+  const ritualPolaroids = useMemo(() => polaroidsForRitual(captures), [captures])
 
   useEffect(() => {
     savePolaroids(captures)
   }, [captures])
 
   useEffect(() => {
+    saveFavor(favor)
+  }, [favor])
+
+  useEffect(() => {
+    saveOwnedItems(ownedItems)
+  }, [ownedItems])
+
+  useEffect(() => {
+    saveHeardClues(heardClues)
+  }, [heardClues])
+
+  useEffect(() => {
+    saveHeardVoiceHints(heardVoiceHints)
+  }, [heardVoiceHints])
+
+  useEffect(() => {
+    saveUnlockedCollectibles(unlockedCollectibles)
+  }, [unlockedCollectibles])
+
+  useEffect(() => {
     activeKindRef.current = activeKind
-    isBossRef.current = activeKind === 'boss'
   }, [activeKind])
 
   useEffect(() => {
@@ -122,9 +251,18 @@ export default function App() {
     detection,
     sustainedTarget,
     ghostShouldShow,
+    sustainedPlayground,
+    sustainedStrangerLabel,
+    sustainedCollectibleLabel,
     classifyFrame,
     resetGhost,
+    forceManifest,
+    clearSustainedStranger,
+    clearSustainedCollectible,
   } = useClassifier()
+
+  const atPlayground =
+    forcePlayground || playgroundArrived || (playgroundUnlocked && sustainedPlayground)
 
   // Probe WebXR
   useEffect(() => {
@@ -222,28 +360,93 @@ export default function App() {
   }, [dusk.allowed, started, arRunning, resetGhost, dusk.status.reason])
 
   const resolveEncounterKind = useCallback(
-    (detected: TargetType): SpiritKind => {
-      if (bossUnlocked && !bossDefeated) return 'boss'
+    (detected: TargetType | null): SpiritKind | null => {
+      // Endgame demon takes priority when at playground and unlocked
+      if (
+        playgroundUnlocked &&
+        !demonDefeated &&
+        (forcePlayground || playgroundArrived || sustainedPlayground)
+      ) {
+        return 'demon'
+      }
+      if (detected && bossUnlocked && !bossDefeated) return 'boss'
       return detected
     },
-    [bossUnlocked, bossDefeated],
+    [
+      playgroundUnlocked,
+      demonDefeated,
+      forcePlayground,
+      playgroundArrived,
+      sustainedPlayground,
+      bossUnlocked,
+      bossDefeated,
+    ],
   )
+
+  // Force-manifest demon when arrived/forced without needing a spirit target
+  useEffect(() => {
+    if (!started || dead || !dusk.allowed) return
+    if (!playgroundUnlocked || demonDefeated) return
+    if (!(forcePlayground || playgroundArrived || sustainedPlayground)) return
+    if (ghostShouldShow && activeKindRef.current === 'demon') return
+    // If CLIP already showing something, resolveEncounterKind will upgrade it.
+    // If not, force a demon manifestation for reliability.
+    if (!ghostShouldShow && (forcePlayground || playgroundArrived)) {
+      forceManifest()
+      lastTargetRef.current = lastTargetRef.current ?? 'doll'
+      if (appearAtRef.current === null) {
+        appearAtRef.current = performance.now()
+        setActiveKind('demon')
+        setAggression(0)
+        setProximity(0)
+        setCapturePhase(0)
+        capturePhaseRef.current = 0
+        meleeEnteredAtRef.current = null
+        lastHitAtRef.current = 0
+        setItemSpentThisFight(false)
+        setStatusLine('The Empty Seat waits. Burn the photographs into the seal.')
+      }
+    }
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    playgroundUnlocked,
+    demonDefeated,
+    forcePlayground,
+    playgroundArrived,
+    sustainedPlayground,
+    ghostShouldShow,
+    forceManifest,
+  ])
 
   // Manifest / flee
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
 
-    if (ghostShouldShow && sustainedTarget) {
+    const demonSite =
+      playgroundUnlocked &&
+      !demonDefeated &&
+      (forcePlayground || playgroundArrived || sustainedPlayground)
+
+    const show =
+      ghostShouldShow ||
+      (demonSite && (forcePlayground || playgroundArrived) && activeKindRef.current === 'demon')
+
+    if (show && (sustainedTarget || demonSite)) {
       setFleeing(false)
-      const kind = resolveEncounterKind(sustainedTarget)
+      const kind =
+        resolveEncounterKind(sustainedTarget) ??
+        (demonSite ? 'demon' : null)
+      if (!kind) return
 
       if (
         appearAtRef.current === null ||
-        lastTargetRef.current !== sustainedTarget ||
+        (sustainedTarget && lastTargetRef.current !== sustainedTarget) ||
         activeKindRef.current !== kind
       ) {
         appearAtRef.current = performance.now()
-        lastTargetRef.current = sustainedTarget
+        if (sustainedTarget) lastTargetRef.current = sustainedTarget
         setActiveKind(kind)
         setAggression(0)
         setProximity(0)
@@ -251,7 +454,13 @@ export default function App() {
         capturePhaseRef.current = 0
         meleeEnteredAtRef.current = null
         lastHitAtRef.current = 0
-        if (kind === 'boss') {
+        setItemSpentThisFight(false)
+        hushUntilRef.current = 0
+        drainHaltUntilRef.current = 0
+        approachSlowUntilRef.current = 0
+        if (kind === 'demon') {
+          setStatusLine('The Empty Seat answers. Burn the photographs into the seal.')
+        } else if (kind === 'boss') {
           setStatusLine('The Threshold Warden answers. Seal it in phases.')
         }
       }
@@ -260,7 +469,9 @@ export default function App() {
         if (placedForRef.current !== kind) {
           arSessionRef.current.requestPlace(kind)
           placedForRef.current = kind
-          if (kind !== 'boss') {
+          if (kind === 'demon') {
+            setStatusLine('Anchoring on the playground ground…')
+          } else if (kind !== 'boss') {
             setStatusLine(`Something wrong near the ${sustainedTarget}…`)
           }
         }
@@ -271,7 +482,7 @@ export default function App() {
       void audioRef.current.ensure().then(() => {
         audioRef.current.setPresence(true, Math.max(aggression, proximity))
       })
-    } else if (appearAtRef.current !== null) {
+    } else if (appearAtRef.current !== null && !demonSite) {
       setFleeing(true)
       setAnchored(false)
       placedForRef.current = null
@@ -284,9 +495,11 @@ export default function App() {
       audioRef.current.setPresence(false, 0)
       audioRef.current.setHeartbeat(bpm, false)
       setStatusLine(
-        bossUnlocked && !bossDefeated
-          ? 'The Warden slipped the frame. It will return.'
-          : 'It slipped away.',
+        playgroundUnlocked && !demonDefeated && !atPlayground
+          ? 'Bring the photographs to the playground.'
+          : bossUnlocked && !bossDefeated
+            ? 'The Warden slipped the frame. It will return.'
+            : 'It slipped away.',
       )
       setTimeout(() => setFleeing(false), 900)
     }
@@ -303,12 +516,24 @@ export default function App() {
     resolveEncounterKind,
     bossUnlocked,
     bossDefeated,
+    playgroundUnlocked,
+    demonDefeated,
+    forcePlayground,
+    playgroundArrived,
+    sustainedPlayground,
+    atPlayground,
   ])
 
   // Approach + health + hits tick
   useEffect(() => {
-    if (!ghostShouldShow || !appearAtRef.current || dead || !dusk.allowed) {
-      if (!ghostShouldShow) {
+    const kindNow = activeKindRef.current
+    const showing =
+      ghostShouldShow ||
+      (kindNow === 'demon' &&
+        (forcePlayground || playgroundArrived || sustainedPlayground))
+
+    if (!showing || !appearAtRef.current || dead || !dusk.allowed) {
+      if (!showing) {
         setAggression(0)
         setProximity(0)
         audioRef.current.setHeartbeat(56, false)
@@ -323,10 +548,13 @@ export default function App() {
       const dt = Math.min(0.25, (now - lastTick) / 1000)
       lastTick = now
 
-      const profile: TensionProfile = isBossRef.current
-        ? BOSS_TENSION
-        : NORMAL_TENSION
-      const elapsed = now - appearAtRef.current
+      const kind = activeKindRef.current
+      const profile: TensionProfile = tensionFor(kind)
+      let elapsed = now - appearAtRef.current
+      if (now < approachSlowUntilRef.current) {
+        // Iron nail: approach clock crawls
+        elapsed *= 0.45
+      }
       const raw = proximityFromElapsed(elapsed, profile.approachMs)
       const prox = easedProximity(raw)
       const agg = Math.min(1, elapsed / profile.approachMs)
@@ -337,22 +565,28 @@ export default function App() {
       audioRef.current.setPresence(true, Math.max(agg, prox))
 
       let h = healthRef.current
-      const drain =
-        profile.passiveDrainPerSec * (0.25 + prox * 1.1) * dt
-      h = Math.max(0, h - drain)
+      if (now >= drainHaltUntilRef.current) {
+        const drain =
+          profile.passiveDrainPerSec * (0.25 + prox * 1.1) * dt
+        h = Math.max(0, h - drain)
+      }
 
       if (isMelee(prox)) {
         if (meleeEnteredAtRef.current === null) {
           meleeEnteredAtRef.current = now
           setStatusLine(
-            isBossRef.current
-              ? 'The Warden is on you — keep sealing!'
-              : 'It’s on you — Capture!',
+            kind === 'demon'
+              ? 'Empty seats — keep the ritual!'
+              : kind === 'boss'
+                ? 'The Warden is on you — keep sealing!'
+                : 'It’s on you — Capture!',
           )
         }
+        const hushActive = now < hushUntilRef.current
         const sinceMelee = now - meleeEnteredAtRef.current
         const sinceHit = now - lastHitAtRef.current
         const ready =
+          !hushActive &&
           sinceMelee >= profile.firstHitDelayMs &&
           (lastHitAtRef.current === 0 || sinceHit >= profile.hitIntervalMs)
         if (ready) {
@@ -362,9 +596,11 @@ export default function App() {
           setStunned(true)
           audioRef.current.playHit()
           setStatusLine(
-            isBossRef.current
-              ? 'It hits like four graves at once.'
-              : 'It struck. Your heart skips.',
+            kind === 'demon'
+              ? 'Chains in your chest. The seat is empty and on you.'
+              : kind === 'boss'
+                ? 'It hits like four graves at once.'
+                : 'It struck. Your heart skips.',
           )
           window.setTimeout(() => setHitFlash(false), 220)
           window.setTimeout(() => setStunned(false), 380)
@@ -379,11 +615,13 @@ export default function App() {
 
       if (prox > 0.7 && !isMelee(prox)) {
         setStatusLine(
-          isBossRef.current
-            ? 'Seal faster. It does not hesitate.'
-            : 'It’s closing in. Capture it.',
+          kind === 'demon'
+            ? 'Ritual faster. The playground does not wait.'
+            : kind === 'boss'
+              ? 'Seal faster. It does not hesitate.'
+              : 'It’s closing in. Capture it.',
         )
-      } else if (prox > 0.35 && prox <= 0.7 && !isBossRef.current) {
+      } else if (prox > 0.35 && prox <= 0.7 && kind !== 'boss' && kind !== 'demon') {
         setStatusLine('Don’t look away. Keep it framed.')
       }
 
@@ -408,10 +646,19 @@ export default function App() {
     }, 100)
 
     return () => clearInterval(id)
-  }, [ghostShouldShow, dead, dusk.allowed, resetGhost])
+  }, [
+    ghostShouldShow,
+    dead,
+    dusk.allowed,
+    resetGhost,
+    forcePlayground,
+    playgroundArrived,
+    sustainedPlayground,
+  ])
 
-  // Announce boss unlock once
+  // Announce unlocks
   const unlockedAnnounced = useRef(false)
+  const playgroundAnnounced = useRef(false)
   useEffect(() => {
     if (!started) return
     if (bossUnlocked && !bossDefeated && !unlockedAnnounced.current) {
@@ -423,9 +670,223 @@ export default function App() {
       )
     }
     if (bossDefeated) unlockedAnnounced.current = true
-  }, [bossUnlocked, bossDefeated, started, forceBoss])
 
-  const startExperience = async () => {
+    if (
+      playgroundUnlocked &&
+      !demonDefeated &&
+      !playgroundAnnounced.current
+    ) {
+      playgroundAnnounced.current = true
+      setStatusLine(
+        forcePlayground
+          ? 'Force playground armed — the Demon waits on the grounds.'
+          : 'Bring the photographs to the playground.',
+      )
+    }
+    if (demonDefeated) playgroundAnnounced.current = true
+  }, [
+    bossUnlocked,
+    bossDefeated,
+    started,
+    forceBoss,
+    playgroundUnlocked,
+    demonDefeated,
+    forcePlayground,
+  ])
+
+  // Mysterious strangers — sustained non-ghost props whisper clues once
+  useEffect(() => {
+    if (!started || dead || !dusk.allowed || activeClue) return
+    if (!sustainedStrangerLabel) return
+    // Don't interrupt an active fight
+    if (activeKindRef.current && (ghostShouldShow || appearAtRef.current)) return
+    const clue = clueForLabel(sustainedStrangerLabel, heardClues)
+    if (clue) {
+      setActiveClue(clue)
+      clearSustainedStranger()
+    }
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    sustainedStrangerLabel,
+    heardClues,
+    activeClue,
+    ghostShouldShow,
+    clearSustainedStranger,
+  ])
+
+  // Dev: force a stranger vignette once on boot
+  useEffect(() => {
+    if (!started || activeClue) return
+    const forced = readForceStranger()
+    if (!forced) return
+    const clue =
+      forced === '1'
+        ? STRANGER_CLUES.find((c) => !heardClues.has(c.id)) ?? STRANGER_CLUES[0]
+        : findClueById(forced)
+    if (clue) setActiveClue(clue)
+    // one-shot
+    try {
+      localStorage.removeItem('ghost-lens-force-stranger')
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('forceStranger')) {
+        url.searchParams.delete('forceStranger')
+        window.history.replaceState({}, '', url.toString())
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started])
+
+
+
+  // Hidden lore collectibles — sustained ghost-tied props unlock once
+  useEffect(() => {
+    if (!started || dead || !dusk.allowed) return
+
+    const unlock = (c: LoreCollectible) => {
+      if (unlockedCollectibles.has(c.id)) return
+      setUnlockedCollectibles((prev) => {
+        const next = new Set(prev)
+        next.add(c.id)
+        return next
+      })
+      setCollectibleToast(c.toast)
+      window.setTimeout(() => setCollectibleToast(null), 4200)
+      clearSustainedCollectible()
+    }
+
+    const forced = readForceCollectible()
+    if (forced) {
+      const c =
+        forced === '1'
+          ? findCollectible('wilted_offering')
+          : findCollectible(forced)
+      if (c && !unlockedCollectibles.has(c.id)) {
+        unlock(c)
+        try {
+          localStorage.removeItem('ghost-lens-force-collectible')
+          const url = new URL(window.location.href)
+          if (url.searchParams.has('forceCollectible')) {
+            url.searchParams.delete('forceCollectible')
+            window.history.replaceState({}, '', url.toString())
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      return
+    }
+
+    if (!sustainedCollectibleLabel) return
+    // Prefer not to interrupt demon/boss mid-fight
+    if (
+      activeKindRef.current === 'demon' ||
+      activeKindRef.current === 'boss'
+    ) {
+      return
+    }
+    const c = collectibleForLabel(sustainedCollectibleLabel, unlockedCollectibles)
+    if (c) unlock(c)
+  }, [
+    started,
+    dead,
+    dusk.allowed,
+    sustainedCollectibleLabel,
+    unlockedCollectibles,
+    clearSustainedCollectible,
+  ])
+
+  // Disembodied voices — rare when/where hints (after first capture or on dusk hunt)
+  useEffect(() => {
+    if (!started || !dusk.allowed || dead || activeVoice || activeClue) return
+    const forced = readForceVoiceHint()
+    const hasCapture = captures.length > 0
+    if (!forced && !hasCapture && !voiceQueuedRef.current) {
+      // On dusk enter without captures: small chance after delay
+    }
+    if (!forced && voiceQueuedRef.current && !hasCapture) return
+
+    const tryQueue = (forceId: string | null) => {
+      const hint = pickVoiceHint(heardVoiceHints, forceId)
+      if (!hint) return
+      if (!forceId && heardVoiceHints.has(hint.id)) return
+      // Rare unless forced
+      if (!forceId && Math.random() > 0.42 && voiceQueuedRef.current) return
+      voiceQueuedRef.current = true
+      setActiveVoice(hint)
+      void audioRef.current.ensure().then(() => {
+        audioRef.current.playWhisperHint()
+      })
+      if (forceId) {
+        try {
+          localStorage.removeItem('ghost-lens-force-voice')
+          const url = new URL(window.location.href)
+          if (url.searchParams.has('forceVoiceHint')) {
+            url.searchParams.delete('forceVoiceHint')
+            window.history.replaceState({}, '', url.toString())
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    if (forced) {
+      tryQueue(forced)
+      return
+    }
+
+    // After first polaroid: queue a hint once
+    if (hasCapture && !voiceQueuedRef.current) {
+      const t = window.setTimeout(() => tryQueue(null), 2800 + Math.random() * 2200)
+      return () => clearTimeout(t)
+    }
+
+    // Periodic rare voice while hunting at dusk (unheard only)
+    if (hasCapture && heardVoiceHints.size < 5) {
+      const t = window.setTimeout(() => {
+        if (Math.random() < 0.28) tryQueue(null)
+      }, 45000 + Math.random() * 40000)
+      return () => clearTimeout(t)
+    }
+  }, [
+    started,
+    dusk.allowed,
+    dead,
+    captures.length,
+    activeVoice,
+    activeClue,
+    heardVoiceHints,
+  ])
+
+  const dismissVoice = () => {
+    if (activeVoice) {
+      setHeardVoiceHints((prev) => {
+        const next = new Set(prev)
+        next.add(activeVoice.id)
+        return next
+      })
+      setStatusLine('A voice fades. Check the whisper journal.')
+    }
+    setActiveVoice(null)
+  }
+
+  const dismissStranger = () => {
+    if (activeClue) {
+      setHeardClues((prev) => {
+        const next = new Set(prev)
+        next.add(activeClue.id)
+        return next
+      })
+      setStatusLine('A stranger’s words linger.')
+    }
+    setActiveClue(null)
+  }
+
+    const startExperience = async () => {
     setStarted(true)
     await audioRef.current.ensure()
   }
@@ -455,9 +916,11 @@ export default function App() {
         onAnchorPlaced: (target) => {
           setAnchored(true)
           setStatusLine(
-            target === 'boss'
-              ? 'Anchored. The Warden is in the room.'
-              : `Anchored. The ${target} thing is in the room.`,
+            target === 'demon'
+              ? 'Anchored. The Empty Seat is on the grounds.'
+              : target === 'boss'
+                ? 'Anchored. The Warden is in the room.'
+                : `Anchored. The ${target} thing is in the room.`,
           )
         },
         onAnchorLost: () => setAnchored(false),
@@ -500,7 +963,13 @@ export default function App() {
           ctx.save()
           ctx.translate(canvas.width / 2, canvas.height * 0.42)
           ctx.globalAlpha = 0.75
-          if (kind === 'boss') {
+          if (kind === 'demon') {
+            ctx.fillStyle = '#0c0808'
+            ctx.beginPath()
+            ctx.ellipse(0, 10, 70, 130, 0.02, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = '#5a3030'
+          } else if (kind === 'boss') {
             ctx.fillStyle = '#120808'
             ctx.beginPath()
             ctx.ellipse(0, 10, 80, 120, 0.05, 0, Math.PI * 2)
@@ -552,14 +1021,20 @@ export default function App() {
       },
       loreVariant: lorePick.variant,
       isBoss: kind === 'boss',
+      isDemon: kind === 'demon',
     }
     setCaptures((c) => [cap, ...c])
 
-    const profile = kind === 'boss' ? BOSS_TENSION : NORMAL_TENSION
+    const earned = favorForCapture(kind)
+    setFavor((f) => f + earned)
+
+    const profile = tensionFor(kind)
     setStatusLine(
-      kind === 'boss'
-        ? `Sealed: ${lorePick.name}. The threshold goes quiet.`
-        : `Polaroid sealed — ${lorePick.name}.`,
+      kind === 'demon'
+        ? `Sealed: ${lorePick.name}. The playground goes quiet. (+${earned} Favor)`
+        : kind === 'boss'
+          ? `Sealed: ${lorePick.name}. The threshold goes quiet. (+${earned} Favor)`
+          : `Polaroid sealed — ${lorePick.name}. (+${earned} Favor)`,
     )
     appearAtRef.current = null
     meleeEnteredAtRef.current = null
@@ -577,44 +1052,72 @@ export default function App() {
     audioRef.current.setPresence(false, 0)
     audioRef.current.setHeartbeat(56, false)
 
-    if (kind !== 'boss') {
+    if (kind !== 'boss' && kind !== 'demon') {
       const nextUnique = uniqueTargetTypes([cap, ...captures]).size
       if (nextUnique >= BOSS_UNLOCK_UNIQUE && !hasBossCapture([cap, ...captures])) {
         window.setTimeout(() => {
           setStatusLine('All four sealed. Something worse is listening.')
         }, 1200)
       }
+      if (
+        hasCompletePolaroidSet([cap, ...captures]) &&
+        !hasDemonCapture([cap, ...captures])
+      ) {
+        window.setTimeout(() => {
+          setStatusLine('Bring the photographs to the playground.')
+        }, 2200)
+      }
     }
   }
 
   const capture = () => {
-    if (!sustainedTarget || !ghostShouldShow || dead || !dusk.allowed || capturing)
-      return
     const kind = activeKindRef.current
+    const demonShowing =
+      kind === 'demon' &&
+      (forcePlayground || playgroundArrived || sustainedPlayground || ghostShouldShow)
+    if (
+      (!sustainedTarget && !demonShowing) ||
+      (!ghostShouldShow && !demonShowing) ||
+      dead ||
+      !dusk.allowed ||
+      capturing
+    )
+      return
     if (!kind) return
 
-    if (kind === 'boss') {
+    if (isMultiSealKind(kind)) {
+      const phases = capturePhasesFor(kind)
       const phase = capturePhaseRef.current
-      if (phase < BOSS_CAPTURE_PHASES - 1) {
+      if (phase < phases - 1) {
         const next = phase + 1
         capturePhaseRef.current = next
         setCapturePhase(next)
-        // Knock the Warden back briefly
-        if (appearAtRef.current != null) {
+        const profile = tensionFor(kind)
+        if (appearAtRef.current != null && profile.phaseKnockback > 0) {
           const now = performance.now()
           const elapsed = now - appearAtRef.current
           const newElapsed = Math.max(
             0,
-            elapsed - BOSS_PHASE_KNOCKBACK * BOSS_TENSION.approachMs,
+            elapsed - profile.phaseKnockback * profile.approachMs,
           )
           appearAtRef.current = now - newElapsed
         }
         meleeEnteredAtRef.current = null
-        setStatusLine(
-          next === 1
-            ? 'First seal holds — keep the frame.'
-            : 'Second seal holds — one more.',
-        )
+        if (kind === 'demon') {
+          const labels = [
+            'First photograph burns into the seal.',
+            'Second photograph — the chains tighten.',
+            'Third — an empty seat remembers you.',
+            'Fourth — one more and the grounds go quiet.',
+          ]
+          setStatusLine(labels[Math.min(next - 1, labels.length - 1)])
+        } else {
+          setStatusLine(
+            next === 1
+              ? 'First seal holds — keep the frame.'
+              : 'Second seal holds — one more.',
+          )
+        }
         audioRef.current.playHit()
         return
       }
@@ -622,6 +1125,85 @@ export default function App() {
 
     setCapturing(true)
     void finishCapture(kind).finally(() => setCapturing(false))
+  }
+
+  const useEquippedItem = () => {
+    if (!equippedItem || itemSpentThisFight || !activeKindRef.current) return
+    const def = getItemDef(equippedItem)
+    if (!def) return
+    const kind = activeKindRef.current
+    const strength = itemStrengthVs(equippedItem, kind)
+    setItemSpentThisFight(true)
+    const now = performance.now()
+
+    if (strength === 'weak') {
+      // Wrong tool — nearly useless
+      if (appearAtRef.current != null) {
+        const elapsed = now - appearAtRef.current
+        const profile = tensionFor(kind)
+        const newElapsed = Math.max(0, elapsed - 0.06 * profile.approachMs)
+        appearAtRef.current = now - newElapsed
+      }
+      setStatusLine(
+        kind === 'boss'
+          ? `${def.name} barely troubles the Warden. Wrong measure.`
+          : `${def.name} does little. This hunger wants a different remedy.`,
+      )
+      audioRef.current.playHit()
+      setEquippedItem(null)
+      return
+    }
+
+    // Strong matchup
+    if (equippedItem === 'salt_line') {
+      if (appearAtRef.current != null) {
+        const elapsed = now - appearAtRef.current
+        const profile = tensionFor(kind)
+        const newElapsed = Math.max(0, elapsed - 0.5 * profile.approachMs)
+        appearAtRef.current = now - newElapsed
+      }
+      meleeEnteredAtRef.current = null
+      setStatusLine('Salt line poured. The wet thing recoils from the border.')
+    } else if (equippedItem === 'iron_nail') {
+      approachSlowUntilRef.current = now + 4000
+      if (appearAtRef.current != null) {
+        const elapsed = now - appearAtRef.current
+        const profile = tensionFor(kind)
+        appearAtRef.current = now - Math.max(0, elapsed - 0.2 * profile.approachMs)
+      }
+      meleeEnteredAtRef.current = null
+      setStunned(true)
+      window.setTimeout(() => setStunned(false), 700)
+      setStatusLine('Iron nail driven. The dirt-hunger staggers.')
+    } else if (equippedItem === 'silver_mirror') {
+      const healed = Math.min(MAX_HEALTH, healthRef.current + 0.4)
+      healthRef.current = healed
+      setHealth(healed)
+      drainHaltUntilRef.current = now + 3200
+      setStatusLine('Silver mirror raised. Vacant eyes flinch — calm returns.')
+    } else if (equippedItem === 'hush_charm') {
+      hushUntilRef.current = now + 4500
+      setStatusLine('Hush charm warm. The vow falls silent awhile.')
+    } else if (equippedItem === 'black_crepe') {
+      if (appearAtRef.current != null) {
+        const elapsed = now - appearAtRef.current
+        const profile = tensionFor(kind)
+        const newElapsed = Math.max(0, elapsed - 0.55 * profile.approachMs)
+        appearAtRef.current = now - newElapsed
+      }
+      meleeEnteredAtRef.current = null
+      hushUntilRef.current = now + 2500
+      // Advance ritual phase as the crepe bites
+      const phases = capturePhasesFor(kind)
+      if (kind === 'demon' && capturePhaseRef.current < phases - 1) {
+        const next = capturePhaseRef.current + 1
+        capturePhaseRef.current = next
+        setCapturePhase(next)
+      }
+      setStatusLine('Black crepe pinned. The Empty Seat knows its name.')
+    }
+    audioRef.current.playHit()
+    setEquippedItem(null)
   }
 
   const retryAfterDeath = () => {
@@ -667,6 +1249,44 @@ export default function App() {
     )
   }
 
+  const toggleForcePlayground = () => {
+    const next = !forcePlayground
+    setForcePlayground(next)
+    if (next) setPlaygroundArrived(true)
+    try {
+      localStorage.setItem('ghost-lens-force-playground', next ? '1' : '0')
+      const url = new URL(window.location.href)
+      if (next) url.searchParams.set('forcePlayground', '1')
+      else url.searchParams.delete('forcePlayground')
+      window.history.replaceState({}, '', url.toString())
+    } catch {
+      /* ignore */
+    }
+    setStatusLine(
+      next
+        ? 'Force playground ON — Demon ready on the grounds.'
+        : 'Force playground OFF.',
+    )
+  }
+
+  const confirmPlaygroundArrival = () => {
+    setPlaygroundArrived(true)
+    setStatusLine('You have arrived. The Empty Seat is listening.')
+  }
+
+  const buyItem = (id: OccultItemId) => {
+    const def = getItemDef(id)
+    if (!def) return
+    if (ownedItems.includes(id)) return
+    if (favor < def.cost) {
+      setStatusLine('The undertaker waits. Favor insufficient.')
+      return
+    }
+    setFavor((f) => f - def.cost)
+    setOwnedItems((o) => [...o, id])
+    setStatusLine(`Purchased: ${def.name}. Keep it close.`)
+  }
+
   // Long-press brand → toggle force dusk (dev)
   const onBrandPointerDown = () => {
     longPressRef.current = window.setTimeout(() => {
@@ -696,19 +1316,26 @@ export default function App() {
   }
 
   const isBoss = activeKind === 'boss'
+  const isDemon = activeKind === 'demon'
+  const phases = capturePhasesFor(activeKind)
+  const demonVisible =
+    isDemon &&
+    (ghostShouldShow || forcePlayground || playgroundArrived || sustainedPlayground)
 
   const modeLabel =
     arMode === 'checking'
       ? 'PROBING…'
       : !dusk.allowed
         ? 'LOCKED — DAY'
-        : isBoss && ghostShouldShow
-          ? 'WARDEN'
-          : arRunning
-            ? 'WEBXR ANCHORED'
-            : arMode === 'webxr'
-              ? 'WEBXR READY'
-              : 'OVERLAY FALLBACK'
+        : isDemon && demonVisible
+          ? 'PLAYGROUND'
+          : isBoss && ghostShouldShow
+            ? 'WARDEN'
+            : arRunning
+              ? 'WEBXR ANCHORED'
+              : arMode === 'webxr'
+                ? 'WEBXR READY'
+                : 'OVERLAY FALLBACK'
 
   if (!started) {
     return (
@@ -721,7 +1348,9 @@ export default function App() {
             <em>doll</em>, or <em>lake</em>. Hold the frame. Something may
             stand where it shouldn’t. Capture it into a polaroid before it
             closes the distance — hesitate, and you may die of fright. Seal
-            all four to wake the <em>Threshold Warden</em>.
+            all four to wake the <em>Threshold Warden</em>, then bring the
+            photographs to the <em>playground</em> for what waits on empty seats.
+            Spend Favor at <em>The Undertaker&apos;s Counter</em>.
           </p>
           <ul className="boot-list">
             <li>
@@ -738,6 +1367,18 @@ export default function App() {
               Inventory: {captures.length} polaroid
               {captures.length === 1 ? '' : 's'} · {uniqueSealed}/4 types
               {bossDefeated ? ' · Warden sealed' : bossUnlocked ? ' · Warden unlocked' : ''}
+              {demonDefeated
+                ? ' · Demon sealed'
+                : playgroundUnlocked
+                  ? ' · Playground unlocked'
+                  : ''}
+            </li>
+            <li>
+              Favor: {favor}
+              {ownedItems.length ? ` · tools ${ownedItems.length}/5` : ''}
+              {heardClues.size ? ` · clues ${heardClues.size}` : ''}
+              {heardVoiceHints.size ? ` · voices ${heardVoiceHints.size}` : ''}
+              {unlockedCollectibles.size ? ` · relics ${unlockedCollectibles.size}` : ''}
             </li>
             <li>
               Hunt hours: dusk only
@@ -747,6 +1388,7 @@ export default function App() {
                 : ''}
               {dusk.forceDusk ? ' · FORCE DUSK' : ''}
               {forceBoss ? ' · FORCE BOSS' : ''}
+              {forcePlayground ? ' · FORCE PLAYGROUND' : ''}
             </li>
             {!dusk.allowed && (
               <li className="warn">{dusk.status.reason}</li>
@@ -774,9 +1416,19 @@ export default function App() {
           >
             {forceBoss ? 'Force boss (test): ON' : 'Force boss (test): OFF'}
           </button>
+          <button
+            type="button"
+            className={`btn dusk-force-btn ${forcePlayground ? 'on' : ''}`}
+            onClick={toggleForcePlayground}
+          >
+            {forcePlayground
+              ? 'Force playground (test): ON'
+              : 'Force playground (test): OFF'}
+          </button>
           <p className="boot-hint">
-            Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> · long-press
-            title in-hunt for dusk.
+            Dev: <code>?forceDusk=1</code> · <code>?forceBoss=1</code> ·{' '}
+            <code>?forcePlayground=1</code> · <code>?forceStranger=1</code> · <code>?forceVoiceHint=1</code> ·
+            long-press title in-hunt for dusk.
           </p>
           {modelError && <p className="warn">{modelError}</p>}
         </div>
@@ -785,7 +1437,9 @@ export default function App() {
   }
 
   return (
-    <div className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''}`}>
+    <div
+      className={`app-root ${hitFlash ? 'app-hit' : ''} ${stunned ? 'app-stun' : ''} ${isBoss ? 'app-boss' : ''} ${isDemon ? 'app-demon' : ''}`}
+    >
       <canvas
         ref={xrCanvasRef}
         className={`xr-canvas ${arRunning ? 'active' : ''}`}
@@ -813,7 +1467,9 @@ export default function App() {
         <FallbackLens
           videoRefAttach={camera.attach}
           videoReady={camera.ready}
-          ghostVisible={ghostShouldShow || fleeing}
+          ghostVisible={
+            ghostShouldShow || fleeing || demonVisible
+          }
           ghostTarget={activeKind ?? sustainedTarget ?? lastTargetRef.current}
           fleeing={fleeing}
           aggression={aggression}
@@ -821,14 +1477,19 @@ export default function App() {
           hitFlash={hitFlash}
           stunned={stunned}
           isBoss={isBoss}
+          isDemon={isDemon}
           onVideoEl={onVideoEl}
         />
       )}
 
-      {arRunning && ghostShouldShow && (
+      {arRunning && (ghostShouldShow || demonVisible) && (
         <div
-          className={`ar-threat-flash ${isBoss ? 'boss-flash' : ''}`}
-          style={{ opacity: Math.max(aggression, proximity) * (isBoss ? 0.55 : 0.4) }}
+          className={`ar-threat-flash ${isBoss ? 'boss-flash' : ''} ${isDemon ? 'demon-flash' : ''}`}
+          style={{
+            opacity:
+              Math.max(aggression, proximity) *
+              (isDemon ? 0.65 : isBoss ? 0.55 : 0.4),
+          }}
         />
       )}
       {arRunning && hitFlash && <div className="hit-overlay ar-hit" aria-hidden />}
@@ -837,12 +1498,16 @@ export default function App() {
         modeLabel={modeLabel}
         detection={detection}
         sustained={sustainedTarget}
-        ghostVisible={ghostShouldShow}
+        ghostVisible={ghostShouldShow || demonVisible}
         anchored={anchored}
         modelReady={modelReady}
         loadingMsg={loadingMsg}
         captureDisabled={
-          !dusk.allowed || !ghostShouldShow || !sustainedTarget || dead || capturing
+          !dusk.allowed ||
+          !(ghostShouldShow || demonVisible) ||
+          (!sustainedTarget && !demonVisible) ||
+          dead ||
+          capturing
         }
         onCapture={capture}
         onOpenGallery={() => setGalleryOpen(true)}
@@ -862,12 +1527,58 @@ export default function App() {
         bpm={bpm}
         proximity={proximity}
         stunned={stunned}
-        isBoss={isBoss && ghostShouldShow}
+        isBoss={isBoss && (ghostShouldShow || false)}
+        isDemon={demonVisible}
         capturePhase={capturePhase}
-        capturePhases={BOSS_CAPTURE_PHASES}
+        capturePhases={phases}
         uniqueSealed={uniqueSealed}
         bossUnlocked={bossUnlocked && !bossDefeated}
+        playgroundUnlocked={playgroundUnlocked && !demonDefeated}
+        playgroundReady={atPlayground}
+        demonDefeated={demonDefeated}
+        ritualPolaroids={isDemon ? ritualPolaroids : []}
+        showArrivePlayground={
+          playgroundUnlocked &&
+          !demonDefeated &&
+          !atPlayground &&
+          dusk.allowed
+        }
+        onArrivePlayground={confirmPlaygroundArrival}
       />
+
+      {/* Favor + shop + tool use strip */}
+      <div className="favor-strip">
+        <button
+          type="button"
+          className="btn undertaker-open-btn"
+          onClick={() => setShopOpen(true)}
+        >
+          Undertaker · {favor} Favor
+        </button>
+        <button
+          type="button"
+          className="btn journal-open-btn"
+          onClick={() => setJournalOpen(true)}
+        >
+          Whispers · {heardVoiceHints.size + heardClues.size}
+        </button>
+        <button
+          type="button"
+          className="btn relics-open-btn"
+          onClick={() => setRelicsOpen(true)}
+        >
+          Relics · {unlockedCollectibles.size}
+        </button>
+        {equippedItem && (ghostShouldShow || demonVisible) && !itemSpentThisFight && (
+          <button
+            type="button"
+            className="btn use-tool-btn"
+            onClick={useEquippedItem}
+          >
+            Use {getItemDef(equippedItem)?.name}
+          </button>
+        )}
+      </div>
 
       <button
         type="button"
@@ -886,7 +1597,48 @@ export default function App() {
         uniqueCount={uniqueSealed}
         bossUnlocked={bossUnlocked}
         bossDefeated={bossDefeated}
+        playgroundUnlocked={playgroundUnlocked}
+        demonDefeated={demonDefeated}
       />
+
+      <UndertakerCounter
+        open={shopOpen}
+        onClose={() => setShopOpen(false)}
+        favor={favor}
+        owned={ownedItems}
+        onBuy={buyItem}
+        equipped={equippedItem}
+        onEquip={setEquippedItem}
+      />
+
+      {activeVoice && (
+        <div className="voice-subtitle" role="status" onClick={dismissVoice}>
+          <p className="voice-kicker">A VOICE WITHOUT A BODY</p>
+          <p className="voice-line">&ldquo;{activeVoice.line}&rdquo;</p>
+          <p className="voice-dismiss">Tap to commit to the journal</p>
+        </div>
+      )}
+
+      <WhisperJournal
+        open={journalOpen}
+        onClose={() => setJournalOpen(false)}
+        heardVoiceIds={heardVoiceHints}
+        heardClueIds={heardClues}
+      />
+
+      <RelicsJournal
+        open={relicsOpen}
+        onClose={() => setRelicsOpen(false)}
+        unlockedIds={unlockedCollectibles}
+      />
+
+      {collectibleToast && (
+        <div className="collectible-toast" role="status">
+          {collectibleToast}
+        </div>
+      )}
+
+      <StrangerVignette clue={activeClue} onDismiss={dismissStranger} />
 
       {dead && <DeathScreen onRetry={retryAfterDeath} />}
     </div>

@@ -446,6 +446,133 @@ function buildThresholdWarden(): THREE.Group {
   return g
 }
 
+
+/** Endgame → playground demon: wrong child-scale, swing chains, empty seats — dread. */
+function buildPlaygroundDemon(): THREE.Group {
+  const g = new THREE.Group()
+  const ash = ashMaterial(0x1c1814, 0.9)
+  const pale = ashMaterial(0x8a7e72, 0.78)
+  const rust = ashMaterial(0x4a3020, 0.85)
+  const chainMat = ashMaterial(0x3a3a38, 0.92)
+  const voidMat = new THREE.MeshBasicMaterial({ color: 0x050304, transparent: true, opacity: 0.95 })
+
+  // Oversized child torso — too tall for the seat scale
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.36, 0.1, 1, 1, 1), ash)
+  torso.position.y = 0.34
+  torso.scale.set(0.85, 1.35, 0.9)
+  torso.rotation.z = 0.04
+  g.add(torso)
+
+  // Small head on long neck — child proportions gone wrong
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.12, 5), pale)
+  neck.position.y = 0.58
+  g.add(neck)
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), pale)
+  head.position.set(0.01, 0.68, 0.02)
+  head.scale.set(0.95, 1.15, 0.9)
+  g.add(head)
+
+  // Vacant sockets — too far apart
+  ;[-1, 1].forEach((side) => {
+    const socket = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), voidMat)
+    socket.position.set(side * 0.028, 0.7, 0.045)
+    g.add(socket)
+  })
+
+  // Mouth as a thin dark smile that isn't
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.006, 0.008), voidMat)
+  mouth.position.set(0.01, 0.655, 0.05)
+  mouth.rotation.z = 0.12
+  g.add(mouth)
+
+  // Too-long limbs dangling like swing riders
+  const armL = limb(0.48, 0.016, ash)
+  armL.position.set(-0.08, 0.48, 0)
+  armL.rotation.z = 0.95
+  armL.rotation.x = 0.25
+  const armR = limb(0.52, 0.015, ash)
+  armR.position.set(0.08, 0.46, 0.02)
+  armR.rotation.z = -1.05
+  armR.rotation.x = -0.2
+  g.add(armL, armR)
+
+  // Legs too thin, too long — dangling toward an empty seat
+  const legL = limb(0.38, 0.014, ash)
+  legL.position.set(-0.04, 0.16, 0)
+  legL.rotation.z = 0.15
+  const legR = limb(0.4, 0.013, ash)
+  legR.position.set(0.045, 0.16, 0.01)
+  legR.rotation.z = -0.2
+  g.add(legL, legR)
+
+  // Empty swing seat underfoot
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.025, 0.1), rust)
+  seat.position.set(0, 0.04, 0.02)
+  seat.name = 'swingSeat'
+  g.add(seat)
+
+  // Swing chains rising into darkness
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const link = new THREE.Mesh(
+        new THREE.TorusGeometry(0.012, 0.004, 6, 10),
+        chainMat,
+      )
+      link.position.set(side * 0.09, 0.08 + i * 0.07, -0.02)
+      link.rotation.y = Math.PI / 2
+      link.rotation.z = side * 0.05
+      link.name = i === 0 ? (side < 0 ? 'chainL' : 'chainR') : ''
+      g.add(link)
+    }
+  }
+
+  // Second empty seat offset — wrong energy
+  const seat2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.08), rust)
+  seat2.position.set(0.28, 0.02, -0.08)
+  seat2.rotation.y = 0.4
+  seat2.name = 'emptySeat'
+  g.add(seat2)
+  for (let i = 0; i < 4; i++) {
+    const link = new THREE.Mesh(
+      new THREE.TorusGeometry(0.01, 0.003, 5, 8),
+      chainMat,
+    )
+    link.position.set(0.28 + (i % 2) * 0.06 - 0.03, 0.06 + i * 0.055, -0.08)
+    link.rotation.y = Math.PI / 2
+    g.add(link)
+  }
+
+  // Soft void core in chest — playground-tainted
+  const voidCore = new THREE.Mesh(
+    new THREE.SphereGeometry(0.035, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.92 }),
+  )
+  voidCore.position.set(0, 0.38, 0.06)
+  voidCore.name = 'voidCore'
+  g.add(voidCore)
+
+  // Sand/mulch disc under swings
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(0.36, 20),
+    new THREE.MeshBasicMaterial({
+      color: 0x1a1410,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  )
+  ground.rotation.x = -Math.PI / 2
+  ground.position.y = 0.005
+  ground.name = 'sandGround'
+  g.add(ground)
+
+  g.scale.setScalar(1.45)
+  g.userData.kind = 'demon'
+  return g
+}
+
 export function createHorrorEntity(target: SpiritKind): THREE.Group {
   switch (target) {
     case 'tombstone':
@@ -458,6 +585,8 @@ export function createHorrorEntity(target: SpiritKind): THREE.Group {
       return buildDrowned()
     case 'boss':
       return buildThresholdWarden()
+    case 'demon':
+      return buildPlaygroundDemon()
   }
 }
 
@@ -543,6 +672,21 @@ export function animateHorrorEntity(
     group.rotation.y = Math.sin(elapsed * 0.55) * (0.12 + agg * 0.25)
     group.rotation.z = (Math.random() - 0.5) * 0.01 * (1 + agg * 2)
     group.scale.setScalar(1.35 + agg * 0.12)
+  } else if (kind === 'demon') {
+    // Swing sway — empty seats energy
+    const sway = Math.sin(elapsed * (1.1 + agg * 0.8)) * (0.08 + agg * 0.12)
+    group.rotation.z = sway
+    group.position.x = Math.sin(elapsed * 0.9) * 0.02 * (1 + agg)
+    group.position.y = Math.abs(Math.sin(elapsed * 1.6)) * 0.025 + agg * 0.08
+    const seat = group.getObjectByName('swingSeat')
+    if (seat) {
+      seat.rotation.z = Math.sin(elapsed * 1.8) * 0.06
+    }
+    const empty = group.getObjectByName('emptySeat')
+    if (empty) {
+      empty.rotation.y = 0.4 + Math.sin(elapsed * 0.7) * 0.15
+    }
+    group.scale.setScalar(1.45 + agg * 0.18)
   }
 
   // Opacity flicker when aggressive

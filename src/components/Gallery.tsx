@@ -8,6 +8,8 @@ interface Props {
   uniqueCount: number
   bossUnlocked: boolean
   bossDefeated: boolean
+  playgroundUnlocked?: boolean
+  demonDefeated?: boolean
 }
 
 export function Gallery({
@@ -17,10 +19,15 @@ export function Gallery({
   uniqueCount,
   bossUnlocked,
   bossDefeated,
+  playgroundUnlocked = false,
+  demonDefeated = false,
 }: Props) {
   const [selected, setSelected] = useState<Capture | null>(null)
 
   if (!open) return null
+
+  const isEndgame = (c: Capture) =>
+    c.isDemon || c.target === 'demon' || c.isBoss || c.target === 'boss'
 
   return (
     <div className="gallery-panel" role="dialog" aria-label="Polaroid inventory">
@@ -31,6 +38,8 @@ export function Gallery({
             {uniqueCount}/4 sealed
             {bossUnlocked && !bossDefeated ? ' · Warden listening' : ''}
             {bossDefeated ? ' · Warden sealed' : ''}
+            {playgroundUnlocked && !demonDefeated ? ' · Playground waiting' : ''}
+            {demonDefeated ? ' · Demon sealed' : ''}
           </p>
         </div>
         <button type="button" className="btn ghost-btn" onClick={onClose}>
@@ -46,7 +55,7 @@ export function Gallery({
             <li key={c.id}>
               <button
                 type="button"
-                className={`polaroid-card ${c.isBoss || c.target === 'boss' ? 'boss-polaroid' : ''}`}
+                className={`polaroid-card ${c.isBoss || c.target === 'boss' ? 'boss-polaroid' : ''} ${c.isDemon || c.target === 'demon' ? 'demon-polaroid' : ''}`}
                 style={{ ['--tilt' as string]: `${((i * 7) % 11) - 5}deg` }}
                 onClick={() => setSelected(c)}
               >
@@ -66,7 +75,7 @@ export function Gallery({
           onClick={() => setSelected(null)}
         >
           <article
-            className={`lore-card ${selected.isBoss || selected.target === 'boss' ? 'boss-lore' : ''}`}
+            className={`lore-card ${selected.isBoss || selected.target === 'boss' ? 'boss-lore' : ''} ${selected.isDemon || selected.target === 'demon' ? 'demon-lore' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             <img
@@ -76,9 +85,11 @@ export function Gallery({
             />
             <div className="lore-body">
               <p className="lore-kicker">
-                {selected.isBoss || selected.target === 'boss'
-                  ? 'BOSS SEALED'
-                  : selected.target.toUpperCase()}
+                {selected.isDemon || selected.target === 'demon'
+                  ? 'DEMON SEALED'
+                  : selected.isBoss || selected.target === 'boss'
+                    ? 'BOSS SEALED'
+                    : selected.target.toUpperCase()}
                 {' · '}
                 {new Date(selected.timestamp).toLocaleString(undefined, {
                   month: 'short',
@@ -93,6 +104,7 @@ export function Gallery({
               <p className="lore-mode">
                 Trapped via {selected.mode === 'webxr' ? 'WebXR anchor' : 'overlay lens'}
                 {selected.loreVariant > 0 ? ` · variation ${selected.loreVariant + 1}` : ''}
+                {isEndgame(selected) ? ' · endgame seal' : ''}
               </p>
               <button
                 type="button"

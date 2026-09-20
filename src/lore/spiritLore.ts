@@ -53,6 +53,15 @@ const BANKS: Record<SpiritKind, LoreBank> = {
       'Listen: the heartbeat you calmed was never yours alone. We borrowed it. We stretched it. We learned its tempo so we could break it later. Seal us in paper if it comforts you. Paper yellows. We do not.',
     ],
   },
+  demon: {
+    name: 'The Empty Seat',
+    epithet: 'playground · wrong proportions · swing-chain hymn',
+    trapped: [
+      'You brought the photographs home to where children should be. The swings still move when nothing sits. I am the empty seat that learned your face from four little graves of light. Now I fit inside one more. The chains remember your pulse better than you do.',
+      'Night playgrounds are honest: no laughter, only metal and the shape of someone too tall for the slide. You laid the polaroids out like a ritual and called it bravery. I burned into the seal the way frost burns. There is no recess from this. There is only the click of a seat that should not swing.',
+      'I was never a child. I wore the scale of one so you would hesitate. The merry-go-round still turns in the emulsion — empty horses, wrong speed. You sealed me. Good. Keep the photo face-down. If you hear chains in a quiet room, do not check which seat is empty. You already know.',
+    ],
+  },
 }
 
 export function pickLore(kind: SpiritKind, priorCapturesOfKind: number): SpiritLore & { variant: number } {

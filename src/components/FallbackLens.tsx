@@ -13,6 +13,7 @@ interface Props {
   hitFlash?: boolean
   stunned?: boolean
   isBoss?: boolean
+  isDemon?: boolean
   onVideoEl: (el: HTMLVideoElement | null) => void
 }
 
@@ -28,6 +29,7 @@ export function FallbackLens({
   hitFlash,
   stunned,
   isBoss,
+  isDemon,
   onVideoEl,
 }: Props) {
   const videoEl = useRef<HTMLVideoElement | null>(null)
@@ -36,16 +38,22 @@ export function FallbackLens({
     onVideoEl(videoEl.current)
   }, [onVideoEl, videoReady])
 
-  const growBase = isBoss ? 1.25 : 1
-  const grow = growBase + proximity * (isBoss ? 2.35 : 1.85)
+  const endgame = !!(isBoss || isDemon)
+  const growBase = isDemon ? 1.35 : isBoss ? 1.25 : 1
+  const grow = growBase + proximity * (isDemon ? 2.7 : isBoss ? 2.35 : 1.85)
   const shakeX =
     proximity > 0.55
-      ? Math.sin(performance.now() / (isBoss ? 28 : 40)) * proximity * (isBoss ? 10 : 6)
+      ? Math.sin(performance.now() / (isDemon ? 22 : isBoss ? 28 : 40)) *
+        proximity *
+        (isDemon ? 14 : isBoss ? 10 : 6)
       : 0
   const shakeY =
     proximity > 0.55
-      ? Math.cos(performance.now() / (isBoss ? 22 : 33)) * proximity * (isBoss ? 7 : 4)
+      ? Math.cos(performance.now() / (isDemon ? 18 : isBoss ? 22 : 33)) *
+        proximity *
+        (isDemon ? 10 : isBoss ? 7 : 4)
       : 0
+  void endgame
 
   const aggStyle = {
     ['--agg' as string]: String(aggression),
@@ -57,7 +65,7 @@ export function FallbackLens({
 
   return (
     <div
-      className={`lens-stage fallback ${proximity > 0.7 ? 'shaking' : ''} ${hitFlash ? 'hit-flash' : ''} ${stunned ? 'stunned' : ''} ${isBoss ? 'boss-stage' : ''}`}
+      className={`lens-stage fallback ${proximity > 0.7 ? 'shaking' : ''} ${hitFlash ? 'hit-flash' : ''} ${stunned ? 'stunned' : ''} ${isBoss ? 'boss-stage' : ''} ${isDemon ? 'demon-stage' : ''}`}
       style={aggStyle}
     >
       <video
@@ -76,7 +84,7 @@ export function FallbackLens({
 
       {ghostVisible && ghostTarget && (
         <div
-          className={`horror-entity ${fleeing ? 'fleeing' : ''} ${isBoss ? 'boss-entity' : ''} agg-${Math.min(5, Math.floor(aggression * 5))} prox-${Math.min(5, Math.floor(proximity * 5))}`}
+          className={`horror-entity ${fleeing ? 'fleeing' : ''} ${isBoss ? 'boss-entity' : ''} ${isDemon ? 'demon-entity' : ''} agg-${Math.min(5, Math.floor(aggression * 5))} prox-${Math.min(5, Math.floor(proximity * 5))}`}
           data-target={ghostTarget}
           style={{
             transform: fleeing
@@ -89,6 +97,7 @@ export function FallbackLens({
           {ghostTarget === 'doll' && <PorcelainDollEntity />}
           {ghostTarget === 'lake' && <DrownedEntity />}
           {ghostTarget === 'boss' && <ThresholdWardenEntity />}
+          {ghostTarget === 'demon' && <PlaygroundDemonEntity />}
         </div>
       )}
 
@@ -200,6 +209,34 @@ function ThresholdWardenEntity() {
       <div className="warden-weed w2" />
       <div className="warden-weed w3" />
       <div className="warden-spike" />
+    </div>
+  )
+}
+
+function PlaygroundDemonEntity() {
+  return (
+    <div className="ent demon">
+      <div className="demon-sand" />
+      <div className="demon-seat seat-main" />
+      <div className="demon-seat seat-empty" />
+      <div className="demon-chain chain-l">
+        <span /><span /><span /><span /><span />
+      </div>
+      <div className="demon-chain chain-r">
+        <span /><span /><span /><span /><span />
+      </div>
+      <div className="demon-torso" />
+      <div className="demon-neck" />
+      <div className="demon-head">
+        <span className="socket s-l" />
+        <span className="socket s-r" />
+        <span className="thin-mouth" />
+      </div>
+      <div className="demon-arm arm-l" />
+      <div className="demon-arm arm-r" />
+      <div className="demon-leg leg-l" />
+      <div className="demon-leg leg-r" />
+      <div className="demon-void" />
     </div>
   )
 }

@@ -268,7 +268,7 @@ export class GhostArSession {
       this.entityRoot.scale,
     )
     // Lake sits on plane; others lift slightly
-    const lift = this.activeTarget === 'lake' ? 0.0 : this.activeTarget === 'boss' ? 0.02 : 0.05
+    const lift = this.activeTarget === 'lake' ? 0.0 : this.activeTarget === 'boss' || this.activeTarget === 'demon' ? 0.02 : 0.05
     this.entityRoot.position.y += lift
     this.entityRoot.visible = true
     this.entityRoot.updateMatrix()
@@ -302,17 +302,22 @@ export class GhostArSession {
     if (dist > 0.01) {
       this.tmpDir.normalize()
       // Move up to ~70% of the gap toward camera at full proximity (boss farther/faster)
-      const isBoss = this.activeTarget === 'boss'
-      const pull = Math.min(dist * (isBoss ? 0.85 : 0.72), isBoss ? 1.75 : 1.4) * p
+      const isDemon = this.activeTarget === 'demon'
+      const isBoss = this.activeTarget === 'boss' || isDemon
+      const pull = Math.min(
+        dist * (isDemon ? 0.92 : isBoss ? 0.85 : 0.72),
+        isDemon ? 2.0 : isBoss ? 1.75 : 1.4,
+      ) * p
       // World direction → root-local offset
       this.tmpDir.applyQuaternion(
         this.entityRoot.quaternion.clone().invert(),
       )
       this.approachOffset.position.copy(this.tmpDir.multiplyScalar(pull))
     }
-    // Scale up as it closes — reads as looming (boss looms harder)
-    const bossBoost = this.activeTarget === 'boss' ? 1.25 : 1
-    this.approachOffset.scale.setScalar(1 + p * 1.4 * bossBoost)
+    // Scale up as it closes — reads as looming (demon looms hardest)
+    const loomBoost =
+      this.activeTarget === 'demon' ? 1.4 : this.activeTarget === 'boss' ? 1.25 : 1
+    this.approachOffset.scale.setScalar(1 + p * 1.4 * loomBoost)
   }
 
   private onXRFrame(frame: XRFrame | undefined) {
