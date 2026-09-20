@@ -29,6 +29,7 @@ import {
   polaroidsForRitual,
   savePolaroids,
   uniqueTargetTypes,
+  withoutDemonCaptures,
 } from './inventory/polaroidStore'
 import { pickLore } from './lore/spiritLore'
 import {
@@ -293,6 +294,8 @@ export default function App() {
   const [endCardOpen, setEndCardOpen] = useState(false)
   const [smileEpilogueOpen, setSmileEpilogueOpen] = useState(false)
   const [epilogueRefused, setEpilogueRefused] = useState(false)
+  /** True only on Return (accept) — Keller took the glass; not on true-good trade. */
+  const [lensReturnedToKeller, setLensReturnedToKeller] = useState(false)
   const [postGame, setPostGame] = useState(false)
   const [cinematicLock, setCinematicLock] = useState(false)
   const [werewolfActive, setWerewolfActive] = useState(false)
@@ -595,6 +598,7 @@ export default function App() {
   // Force-manifest demon when arrived/forced without needing a spirit target
   useEffect(() => {
     if (!started || dead || !dusk.allowed) return
+    if (cinematicLock || finaleActive || epilogueOpen || werewolfActive || smileEpilogueOpen || endCardOpen) return
     if (!playgroundUnlocked || demonDefeated) return
     if (!(forcePlayground || playgroundArrived || sustainedPlayground)) return
     if (ghostShouldShow && activeKindRef.current === 'demon') return
@@ -624,6 +628,12 @@ export default function App() {
     started,
     dead,
     dusk.allowed,
+    cinematicLock,
+    finaleActive,
+    epilogueOpen,
+    werewolfActive,
+    smileEpilogueOpen,
+    endCardOpen,
     playgroundUnlocked,
     demonDefeated,
     forcePlayground,
@@ -1713,6 +1723,10 @@ export default function App() {
           'The ground stays shut. The Empty Seat remains in your hand.',
         )
       } else {
+        // Hell-hands consume the print — strip from gallery so NG+ can reseal.
+        setCaptures((c) => withoutDemonCaptures(c))
+        setKeptDemonPolaroid(false)
+        setKeptDemonPhoto(false)
         setFinalePolaroidUrl(polaroidUrl)
         setFinaleActive(true)
         void audioRef.current.ensure().then(() => audioRef.current.playDemonFinale())
@@ -2044,6 +2058,8 @@ export default function App() {
   const onEpilogueResolved = useCallback((choice: EpilogueChoice) => {
     setEpilogueOpen(false)
     if (choice === 'refuse') {
+      // Trade refuse: player keeps the demon print (werewolf death follows).
+      // Hell-hands refuse: print already gone; lens stay with player until death.
       setEpilogueRefused(true)
       setWerewolfActive(true)
       setStatusLine('Herr Keller’s manners leave him.')
@@ -2053,12 +2069,15 @@ export default function App() {
       return
     }
     if (choice === 'trade') {
+      // Lore: photo traded to Keller — archive out of active gallery for NG+ reseal.
+      setCaptures((c) => withoutDemonCaptures(c))
       setKeptDemonPolaroid(false)
       setKeptDemonPhoto(false)
       markTrueGoodEnding()
       setTrueGoodEnd(true)
       setTradeMode(false)
       setEpilogueRefused(false)
+      setLensReturnedToKeller(false)
       setPostGame(true)
       if (shouldPlaySmileEpilogue()) {
         setCinematicLock(true)
@@ -2074,10 +2093,12 @@ export default function App() {
       }
       return
     }
-    // Return the lens — grant NG+ charm
+    // Return the lens — grant NG+ charm (demon print already consumed by hell-hands).
+    setCaptures((c) => withoutDemonCaptures(c))
     grantKellerCharm()
     setHasCharm(true)
     setEpilogueRefused(false)
+    setLensReturnedToKeller(true)
     setTradeMode(false)
     setEndCardOpen(true)
     setPostGame(true)
@@ -2576,7 +2597,7 @@ export default function App() {
         equipped={equippedItem}
         onEquip={setEquippedItem}
         postGame={postGame}
-        lensReturned={postGame && !epilogueRefused}
+        lensReturned={lensReturnedToKeller}
       />
 
       {activeVoice && (

@@ -121,6 +121,14 @@ export function BazaarIntro({ open, onComplete }: Props) {
             <p className="bazaar-line dim">
               Take care how you aim the glass. Dusk is seldom empty-handed.
             </p>
+            <p className="bazaar-line">
+              One courtesy, before you go: the visitor holding the phone is not
+              the heir named in any will. You are a guest of the shop.
+            </p>
+            <p className="bazaar-line dim">
+              That camera stays a story about someone else — submitted for your
+              approval, not your inheritance.
+            </p>
             <button
               type="button"
               className="btn capture-btn bazaar-btn"

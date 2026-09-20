@@ -211,7 +211,7 @@ Many mundane props can be inspected without starting a fight. Hold them in frame
 
 ## Cold open — Kern's Bizarre Bazaar
 
-First launch (before the hunt boot UI) drops you in a stylized **black-and-white bazaar** screen — not AR. The proprietor (portrait `public/portraits/bazaar-host.png`) notices you eyeing a camera in the display case and offers a Rod Serling–cadence frame tale: an eccentric uncle in the hunter circles left you the lens after a quiet death; darker channels; men like **Herr Keller** may want it back later. **Listen** plays the setup; **Not now** skips with a shorter line. Completing either path sets `introSeen` on the save blob.
+First launch (before the hunt boot UI) drops you in a stylized **black-and-white bazaar** screen — not AR. The proprietor (portrait `public/portraits/bazaar-host.png`) notices you eyeing a camera in the display case and offers a Rod Serling–cadence frame tale: an eccentric uncle in the hunter circles left *an heir* the lens after a quiet death; darker channels; men like **Herr Keller** may want it back later. **You are a shop guest holding the phone** — the heir is fiction inside the telling. **Listen** plays that setup; **Not now** skips with a shorter Serling aside that the visitor ≠ the heir and the camera stays a story about someone else. Completing either path sets `introSeen` on the save blob.
 
 - **Replay intro** — Save / Backup panel
 - **Dev:** `?forceIntro=1`

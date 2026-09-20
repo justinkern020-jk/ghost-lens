@@ -37,6 +37,13 @@ export function hasDemonCapture(captures: Capture[]): boolean {
   return captures.some((c) => c.target === 'demon' || c.isDemon)
 }
 
+
+/** Strip Empty Seat / demon prints from the active gallery (hell-hands or Keller trade). */
+export function withoutDemonCaptures(captures: Capture[]): Capture[] {
+  return captures.filter((c) => c.target !== 'demon' && !c.isDemon)
+}
+
+
 export function polaroidsForRitual(captures: Capture[]): Capture[] {
   const picked: Capture[] = []
   for (const t of TARGET_LABELS) {
