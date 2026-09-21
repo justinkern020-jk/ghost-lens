@@ -3045,9 +3045,15 @@ html, body, #root {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: max(16px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    max(28px, env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left));
   overflow: hidden;
   background: #0a0705;
+  box-sizing: border-box;
+  max-width: 100vw;
 }
 .title-splash-fallback {
   background:
@@ -3059,11 +3065,19 @@ html, body, #root {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 40%;
+  /* Letterbox on Cabals bg — never crop baked GHOST LENS / tagline on portrait phones. */
+  object-fit: contain;
+  object-position: center 20%;
   z-index: 0;
   pointer-events: none;
   filter: sepia(0.14) contrast(1.08) saturate(0.95) brightness(0.88);
+}
+/* Desktop / wide landscape: full-bleed cover using landscape source from <picture>. */
+@media (orientation: landscape) and (min-width: 700px) {
+  .title-splash-art {
+    object-fit: cover;
+    object-position: center 40%;
+  }
 }
 .title-splash-scrim {
   position: absolute;
@@ -3072,12 +3086,22 @@ html, body, #root {
   pointer-events: none;
   background:
     linear-gradient(180deg,
-      rgba(8, 6, 4, 0.35) 0%,
-      rgba(8, 6, 4, 0.12) 32%,
-      rgba(8, 6, 4, 0.45) 62%,
+      rgba(8, 6, 4, 0.18) 0%,
+      rgba(8, 6, 4, 0.05) 28%,
+      rgba(8, 6, 4, 0.2) 55%,
+      rgba(5, 4, 3, 0.88) 100%),
+    radial-gradient(ellipse at 50% 22%, rgba(180, 120, 50, 0.1), transparent 48%),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.35) 100%);
+}
+/* With baked-in title art, keep top clearer so lettering stays readable. */
+.title-splash-has-art .title-splash-scrim {
+  background:
+    linear-gradient(180deg,
+      rgba(8, 6, 4, 0.08) 0%,
+      rgba(8, 6, 4, 0.02) 35%,
+      rgba(8, 6, 4, 0.28) 62%,
       rgba(5, 4, 3, 0.92) 100%),
-    radial-gradient(ellipse at 50% 22%, rgba(180, 120, 50, 0.12), transparent 48%),
-    radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.45) 100%);
+    radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.3) 100%);
 }
 .title-splash-grain {
   position: absolute;
@@ -3118,8 +3142,10 @@ html, body, #root {
   position: relative;
   z-index: 2;
   width: min(420px, 100%);
+  max-width: 100%;
   text-align: center;
   padding: 8px 4px 0;
+  box-sizing: border-box;
 }
 .title-splash-kicker {
   margin: 0 0 8px;
@@ -3148,6 +3174,7 @@ html, body, #root {
 }
 .title-splash-begin {
   width: 100%;
+  max-width: 100%;
   padding: 16px;
   border-color: rgba(180, 140, 70, 0.75) !important;
   color: #f0e4c8 !important;
