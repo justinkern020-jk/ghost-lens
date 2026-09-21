@@ -2442,6 +2442,7 @@ export default function App() {
       <div className="boot-screen">
         <div className="boot-bg" aria-hidden="true" />
         <div className="boot-scrim" aria-hidden="true" />
+        <div className="boot-grain" aria-hidden="true" />
         <div className="boot-inner">
           <p className="boot-kicker">FIELD INSTRUMENT</p>
           <h1 className="boot-title">GHOST LENS</h1>

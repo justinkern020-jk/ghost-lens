@@ -683,6 +683,7 @@ html, body, #root {
 }
 .mode-tag { color: var(--acid-dim); }
 
+/* —— Boot hub (Cabals occult card — post-title / post-bazaar start) —— */
 .boot-screen {
   position: relative;
   isolation: isolate;
@@ -692,7 +693,9 @@ html, body, #root {
   justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
   overflow: auto;
-  background: #050403;
+  background: #120c08;
+  color: #e8dcc0;
+  font-family: Georgia, "Times New Roman", serif;
 }
 .boot-bg {
   position: absolute;
@@ -700,9 +703,10 @@ html, body, #root {
   z-index: 0;
   background:
     url("/bazaar/boot-hub.png") center / cover no-repeat,
-    #050403;
-  filter: sepia(0.18) contrast(1.1) saturate(0.9) brightness(0.78);
-  transform: scale(1.02);
+    #120c08;
+  /* Keep Cabals art readable — light warm grade, not crushed black */
+  filter: sepia(0.12) contrast(1.06) saturate(1.05) brightness(0.95);
+  transform: scale(1.03);
 }
 .boot-scrim {
   position: absolute;
@@ -711,71 +715,148 @@ html, body, #root {
   pointer-events: none;
   background:
     linear-gradient(180deg,
-      rgba(5, 4, 3, 0.78) 0%,
-      rgba(8, 7, 5, 0.42) 28%,
-      rgba(8, 7, 5, 0.55) 55%,
-      rgba(5, 4, 3, 0.92) 100%),
-    radial-gradient(ellipse at 50% 18%, rgba(90, 50, 28, 0.22), transparent 52%),
-    radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.55) 100%);
+      rgba(18, 12, 8, 0.28) 0%,
+      rgba(20, 12, 8, 0.12) 22%,
+      rgba(18, 10, 6, 0.22) 48%,
+      rgba(12, 8, 5, 0.55) 78%,
+      rgba(8, 5, 3, 0.78) 100%),
+    radial-gradient(ellipse at 50% 18%, rgba(160, 100, 40, 0.16), transparent 48%),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.38) 100%);
+}
+.boot-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(210, 170, 110, 0.05) 2px,
+      rgba(210, 170, 110, 0.05) 4px
+    );
+  mix-blend-mode: soft-light;
 }
 .boot-inner {
   position: relative;
   z-index: 2;
-  width: min(420px, 100%);
+  width: min(420px, 94vw);
   max-width: 420px;
-  padding: 18px 16px 16px;
-  border: 1px solid rgba(120, 100, 70, 0.35);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 22px 18px 18px;
+  border: 2px solid #a67c3a;
   background:
-    linear-gradient(180deg, rgba(18, 14, 10, 0.72), rgba(8, 7, 5, 0.88));
+    linear-gradient(165deg,
+      rgba(58, 42, 26, 0.88) 0%,
+      rgba(36, 24, 14, 0.9) 42%,
+      rgba(18, 12, 8, 0.94) 100%);
   box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.65),
-    inset 0 0 40px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(2px);
+    0 0 0 1px rgba(212, 175, 55, 0.35),
+    0 0 28px rgba(160, 100, 40, 0.28),
+    0 22px 56px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(232, 210, 160, 0.18),
+    inset 0 0 48px rgba(80, 40, 16, 0.28);
+  color: #e8dcc0;
 }
 .boot-kicker {
-  font-size: 10px;
-  letter-spacing: 0.35em;
-  color: #9a8870;
-  margin: 0 0 10px;
+  font: 10px/1 "Courier New", ui-monospace, monospace;
+  letter-spacing: 0.28em;
+  color: #c4a070;
+  margin: 0 0 8px;
   text-align: center;
+  text-shadow: 0 0 12px rgba(180, 120, 50, 0.25);
 }
 .boot-title,
 .boot-inner h1 {
   margin: 0 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
   font-weight: normal;
   letter-spacing: 0.28em;
   font-size: clamp(26px, 7vw, 34px);
   text-align: center;
-  color: #e8dcc0;
+  color: #f0e4c8;
   text-shadow:
-    0 0 18px rgba(200, 160, 90, 0.28),
-    0 2px 12px rgba(0, 0, 0, 0.85);
+    0 0 22px rgba(200, 160, 90, 0.35),
+    0 2px 14px rgba(0, 0, 0, 0.9),
+    0 0 1px rgba(232, 220, 192, 0.5);
 }
 .boot-tagline {
   margin: 0 0 16px;
   text-align: center;
   font: italic 12px/1.45 Georgia, "Times New Roman", serif;
-  color: #b8a888;
+  color: #c8b898;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
 }
 .boot-blurb {
-  font-size: 13px;
-  line-height: 1.55;
-  color: #c8bea8;
+  font: 14px/1.55 Georgia, "Times New Roman", serif;
+  color: #e0d4b8;
   margin: 0 0 16px;
 }
-.boot-blurb em { color: var(--acid); font-style: normal; }
-.boot-list {
-  margin: 0 0 20px;
-  padding-left: 18px;
-  font-size: 11px;
-  color: #8a7e6a;
-  line-height: 1.6;
+.boot-blurb em {
+  color: #f5e6c0;
+  font-style: italic;
+  text-shadow: 0 0 10px rgba(200, 150, 70, 0.2);
 }
-.boot-list .warn, .warn { color: var(--warn); }
+.boot-list {
+  margin: 0 0 18px;
+  padding-left: 18px;
+  font: 11px/1.65 "Courier New", ui-monospace, monospace;
+  color: #b8a888;
+}
+.boot-list .warn, .boot-screen .warn { color: #e09070; }
 .boot-go { width: 100%; padding: 16px; }
+/* Cabals chrome for hub actions — kill acid-green HUD inheritance */
+.boot-screen .btn {
+  font-family: "Courier New", ui-monospace, monospace;
+  border-color: rgba(180, 140, 70, 0.55);
+  color: #d4c4a0;
+  background: rgba(28, 18, 10, 0.72);
+  box-shadow: none;
+}
+.boot-screen .btn.capture-btn,
+.boot-screen .boot-go {
+  background:
+    linear-gradient(180deg, rgba(72, 48, 24, 0.95), rgba(32, 22, 12, 0.96));
+  border-color: rgba(180, 140, 70, 0.85);
+  color: #f0e4c8;
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.28),
+    0 12px 28px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(232, 210, 160, 0.18);
+  letter-spacing: 0.12em;
+}
+.boot-screen .btn.capture-btn:not(:disabled):active,
+.boot-screen .boot-go:not(:disabled):active {
+  background: linear-gradient(180deg, rgba(90, 60, 28, 0.98), rgba(40, 28, 14, 0.98));
+}
+.boot-screen .btn.capture-btn:hover,
+.boot-screen .btn.capture-btn:focus-visible,
+.boot-screen .boot-go:hover,
+.boot-screen .boot-go:focus-visible {
+  border-color: rgba(212, 175, 55, 0.95);
+  color: #fff6de;
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.45),
+    0 0 24px rgba(180, 120, 50, 0.28),
+    0 12px 28px rgba(0, 0, 0, 0.5);
+}
 .boot-screen .dusk-force-btn {
   max-width: none;
+  margin-top: 8px;
+  font-size: 10px;
+  border-color: rgba(140, 110, 60, 0.55);
+  color: #c8b890;
+  background: rgba(22, 14, 8, 0.65);
+}
+.boot-screen .dusk-force-btn.on {
+  border-color: rgba(212, 175, 55, 0.9);
+  color: #f5e6c0;
+  background: rgba(56, 38, 18, 0.85);
+  box-shadow: 0 0 14px rgba(180, 120, 50, 0.22);
 }
 
 /* —— Approach / shake (fallback) —— */
@@ -1019,13 +1100,12 @@ html, body, #root {
   color: var(--acid);
 }
 .boot-hint {
-  margin: 10px 0 0;
-  font-size: 10px;
-  color: #6e6456;
-  line-height: 1.4;
+  margin: 12px 0 0;
+  font: 10px/1.45 "Courier New", ui-monospace, monospace;
+  color: #8a7a62;
 }
 .boot-hint code {
-  color: var(--acid-dim);
+  color: #c4a070;
 }
 .brand-longpress {
   position: absolute;
