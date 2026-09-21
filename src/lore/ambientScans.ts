@@ -624,6 +624,33 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
     reading:
       'A seam of glue where someone tried to keep beauty whole. Water still finds the fracture and weeps slowly onto wood. It held stems; it holds the argument that some breaks are kept on purpose.',
   },
+
+  {
+    id: 'empty_seat',
+    imageKey: 'empty-seat',
+    labels: [
+      'chair',
+      'empty chair',
+      'armchair',
+      'dining chair',
+      'office chair',
+      'wooden chair',
+      'rocking chair',
+      'stool',
+      'seat',
+      'recliner',
+      'desk chair',
+      'folding chair',
+      'kitchen chair',
+    ],
+    title: 'Empty Seat',
+    reading:
+      'Four legs and a vacancy measured for a spine that will not return. The seat remembers weight in the wrong proportion — too light, too long, too willing to wait. Dust rehearses the outline of sitting; the house keeps the appointment alone.',
+    clue: {
+      kind: 'general',
+      text: 'A chair held steady can wake a thinner echo. The lens alone may hold what sits where nobody should.',
+    },
+  },
 ]
 
 /** Unique CLIP labels used by ambient scans (merged into candidate list). */

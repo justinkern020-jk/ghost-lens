@@ -27,11 +27,24 @@ const CONFIDENCE_THRESHOLD = 0.28
 const PLAYGROUND_CONFIDENCE_THRESHOLD = 0.26
 const STRANGER_CONFIDENCE_THRESHOLD = 0.27
 const COLLECTIBLE_CONFIDENCE_THRESHOLD = 0.26
-/** Trial chair — easier / earlier spawn. */
-const TRIAL_CONFIDENCE_THRESHOLD = 0.16
+/**
+ * Trial chair — softmax over ~270 labels dilutes any single alias.
+ * We sum chair-like alias scores and/or run a small probe pass.
+ */
+const TRIAL_CONFIDENCE_THRESHOLD = 0.10
+/** Absolute max on a single chair alias (when sum is still low). */
+const TRIAL_MAX_ALIAS_THRESHOLD = 0.08
+/** Sum of chair aliases needed when using the main multi-class pass. */
+const TRIAL_ALIAS_SUM_THRESHOLD = 0.12
+/** Probe pass (few labels) can use a normal threshold. */
+const TRIAL_PROBE_THRESHOLD = 0.22
 const SUSTAIN_MS = 1200
-const TRIAL_SUSTAIN_MS = 500
+const TRIAL_SUSTAIN_MS = 400
 const FLEE_MS = 1800
+const AMBIENT_CONFIDENCE_THRESHOLD = 0.24
+/** Chair / Empty Seat ambient — same dilution problem as trial. */
+const CHAIR_AMBIENT_CONFIDENCE_THRESHOLD = 0.10
+const CHAIR_AMBIENT_SUM_THRESHOLD = 0.12
 
 export function useClassifier() {
   const [ready, setReady] = useState(false)
@@ -153,7 +166,10 @@ export function useClassifier() {
         ctx.drawImage(source, 0, 0, w, h)
       }
 
-      const results = await classifierRef.current(canvas, [...CANDIDATE_LABELS], {
+      // Dedupe — ambient + trial + collectible aliases overlap; duplicates
+      // further dilute softmax mass for chairs and other shared props.
+      const candidateLabels = [...new Set<string>(CANDIDATE_LABELS as readonly string[])]
+      const results = await classifierRef.current(canvas, candidateLabels, {
         multi_label: false,
       })
 
@@ -223,10 +239,16 @@ export function useClassifier() {
       }
 
       const secretScore = Math.max(0, ...SECRET_TRIGGER_LABELS.map((l) => scores[l] ?? 0))
-      const trialScore = Math.max(
+      const trialAliasMax = Math.max(
         0,
         ...TRIAL_TRIGGER_ALIASES.map((l) => scores[l] ?? 0),
       )
+      const trialAliasSum = TRIAL_TRIGGER_ALIASES.reduce(
+        (acc, l) => acc + (scores[l] ?? 0),
+        0,
+      )
+      // Softmax splits mass across chair synonyms — prefer sum, keep max as fallback.
+      let trialScore = Math.max(trialAliasMax, trialAliasSum)
 
       const negativeMax = Math.max(
         scores['empty room'] ?? 0,
@@ -265,20 +287,79 @@ export function useClassifier() {
         bestCollectibleScore >= COLLECTIBLE_CONFIDENCE_THRESHOLD &&
         bestCollectibleScore > negativeMax * 0.85
 
-      const AMBIENT_CONFIDENCE_THRESHOLD = 0.24
+      const chairAmbientLabels = TRIAL_TRIGGER_ALIASES as readonly string[]
+      const isChairAmbient =
+        !!bestAmbient && chairAmbientLabels.includes(bestAmbient)
+      const ambientScoreForHit = isChairAmbient
+        ? Math.max(bestAmbientScore, trialAliasSum)
+        : bestAmbientScore
       const ambientHit =
-        bestAmbient &&
-        bestAmbientScore >= AMBIENT_CONFIDENCE_THRESHOLD &&
-        bestAmbientScore > negativeMax * 0.82 &&
+        !!bestAmbient &&
+        (isChairAmbient
+          ? trialAliasSum >= CHAIR_AMBIENT_SUM_THRESHOLD ||
+            bestAmbientScore >= CHAIR_AMBIENT_CONFIDENCE_THRESHOLD
+          : bestAmbientScore >= AMBIENT_CONFIDENCE_THRESHOLD) &&
+        ambientScoreForHit > negativeMax * (isChairAmbient ? 0.55 : 0.82) &&
         // Prefer not to steal focus from a hard ghost lock
-        (!accepted || bestAmbientScore >= bestScore * 0.9)
+        (!accepted || ambientScoreForHit >= bestScore * 0.9)
 
-      // Trial chair: easier threshold; furniture is a near-neighbor so loosen veto.
-      // Prefer main ghost targets when they clearly win.
-      const trialHit =
-        trialScore >= TRIAL_CONFIDENCE_THRESHOLD &&
-        trialScore > trialNegativeMax * 0.65 &&
-        (!accepted || trialScore >= bestScore * 0.98)
+      // Trial chair from main pass (diluted scores).
+      let trialHit =
+        (trialAliasSum >= TRIAL_ALIAS_SUM_THRESHOLD ||
+          trialAliasMax >= TRIAL_MAX_ALIAS_THRESHOLD ||
+          trialScore >= TRIAL_CONFIDENCE_THRESHOLD) &&
+        trialAliasMax > trialNegativeMax * 0.5 &&
+        (!accepted || trialAliasMax >= bestScore * 0.9 || trialAliasSum >= bestScore * 0.85)
+
+      // Narrow probe when the big label set only hints at furniture/chair.
+      // ~15-way softmax restores usable chair confidence on real seats.
+      const furnitureScore = scores['furniture'] ?? 0
+      const maybeChair =
+        !trialHit &&
+        (furnitureScore >= 0.1 ||
+          trialAliasMax >= 0.04 ||
+          trialAliasSum >= 0.06)
+      if (maybeChair && classifierRef.current) {
+        const probeLabels = [
+          ...new Set<string>([
+            ...TRIAL_TRIGGER_ALIASES,
+            'sofa',
+            'couch',
+            'table',
+            'bed',
+            'empty room',
+            'plain wall',
+            'person',
+            'none of the above',
+          ]),
+        ]
+        const probeResults = await classifierRef.current(canvas, probeLabels, {
+          multi_label: false,
+        })
+        const probeScores: Record<string, number> = {}
+        for (const r of probeResults) probeScores[r.label] = r.score
+        const probeMax = Math.max(
+          0,
+          ...TRIAL_TRIGGER_ALIASES.map((l) => probeScores[l] ?? 0),
+        )
+        const probeSum = TRIAL_TRIGGER_ALIASES.reduce(
+          (acc, l) => acc + (probeScores[l] ?? 0),
+          0,
+        )
+        const probeNeg = Math.max(
+          probeScores['empty room'] ?? 0,
+          probeScores['plain wall'] ?? 0,
+          probeScores['none of the above'] ?? 0,
+          probeScores['person'] ?? 0,
+        )
+        const probeHit =
+          (probeMax >= TRIAL_PROBE_THRESHOLD || probeSum >= 0.35) &&
+          probeMax > probeNeg * 0.55
+        if (probeHit) {
+          trialHit = true
+          trialScore = Math.max(trialScore, probeMax, probeSum * 0.5)
+        }
+      }
 
       const SECRET_CONFIDENCE_THRESHOLD = 0.22
       const secretHit =
@@ -313,7 +394,9 @@ export function useClassifier() {
         trialConfidence: trialScore,
         secretConfidence: secretScore,
         ambientScanLabel: ambientHit ? bestAmbient : null,
-        ambientScanConfidence: bestAmbientScore,
+        ambientScanConfidence: ambientHit && isChairAmbient
+          ? Math.max(bestAmbientScore, trialAliasSum)
+          : bestAmbientScore,
         spookboxMakerLabel: makerHit ? bestMaker : null,
         spookboxMakerConfidence: bestMakerScore,
       })

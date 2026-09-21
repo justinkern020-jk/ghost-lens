@@ -9,13 +9,24 @@ export type TargetType = (typeof TARGET_LABELS)[number]
 export const TRIAL_TRIGGER_LABEL = 'chair' as const
 export type TrialTriggerLabel = typeof TRIAL_TRIGGER_LABEL
 
-/** Softer CLIP aliases for the trial chair haunt (max-scored). */
+/** CLIP aliases for the trial chair haunt (sum-scored; synonyms dilute softmax). */
 export const TRIAL_TRIGGER_ALIASES = [
   'chair',
   'rocking chair',
   'armchair',
   'seat',
   'empty chair',
+  'dining chair',
+  'office chair',
+  'wooden chair',
+  'desk chair',
+  'stool',
+  'bar stool',
+  'recliner',
+  'lawn chair',
+  'folding chair',
+  'kitchen chair',
+  'plastic chair',
 ] as const
 
 /** All spirit kinds including trial echo, mid-boss Warden, and endgame Demon. */

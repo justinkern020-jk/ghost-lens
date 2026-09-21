@@ -1355,6 +1355,15 @@ export default function App() {
       clearSustainedAmbientScan()
       return
     }
+    // Chair / Empty Seat ambient shares CLIP labels with the trial haunt —
+    // prefer the Thin One while a trial lock is active or forced.
+    if (
+      entry.id === 'empty_seat' &&
+      (sustainedTrial || forceTrial || activeKindRef.current === 'trial')
+    ) {
+      clearSustainedAmbientScan()
+      return
+    }
     const now = performance.now()
     const last = ambientCooldownRef.current.get(entry.id) ?? 0
     // Soft lock: once seen this session, only re-show after 90s cooldown
@@ -1391,6 +1400,8 @@ export default function App() {
     activeAmbientScan,
     sustainedAmbientScanLabel,
     seenAmbientScans,
+    sustainedTrial,
+    forceTrial,
     clearSustainedAmbientScan,
   ])
 
