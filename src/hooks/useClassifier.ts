@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   CANDIDATE_LABELS,
+  CHAIR_SCENE_HINT_LABELS,
   SECRET_TRIGGER_LABELS,
   SPOOKBOX_MAKER_LABELS,
   PLAYGROUND_LABELS,
@@ -37,14 +38,19 @@ const TRIAL_MAX_ALIAS_THRESHOLD = 0.08
 /** Sum of chair aliases needed when using the main multi-class pass. */
 const TRIAL_ALIAS_SUM_THRESHOLD = 0.12
 /** Probe pass (few labels) can use a normal threshold. */
-const TRIAL_PROBE_THRESHOLD = 0.22
+const TRIAL_PROBE_THRESHOLD = 0.20
 const SUSTAIN_MS = 1200
 const TRIAL_SUSTAIN_MS = 400
+/** Empty Seat ambient sustain — keep under ~1s with trial. */
+const CHAIR_AMBIENT_SUSTAIN_MS = 500
 const FLEE_MS = 1800
 const AMBIENT_CONFIDENCE_THRESHOLD = 0.24
 /** Chair / Empty Seat ambient — same dilution problem as trial. */
 const CHAIR_AMBIENT_CONFIDENCE_THRESHOLD = 0.10
 const CHAIR_AMBIENT_SUM_THRESHOLD = 0.12
+/** furniture+seat combo from narrow probe (independent of 270-way mass). */
+const CHAIR_FURNITURE_COMBO_FURN = 0.22
+const CHAIR_FURNITURE_COMBO_SEAT = 0.15
 
 export function useClassifier() {
   const [ready, setReady] = useState(false)
@@ -67,6 +73,10 @@ export function useClassifier() {
     ambientScanConfidence: 0,
     spookboxMakerLabel: null,
     spookboxMakerConfidence: 0,
+    debugTopLabel: null,
+    debugTopScore: 0,
+    debugChairProbeScore: 0,
+    debugChairProbeLabel: null,
   })
   const [sustainedTarget, setSustainedTarget] = useState<TargetType | null>(null)
   const [ghostShouldShow, setGhostShouldShow] = useState(false)
@@ -288,12 +298,12 @@ export function useClassifier() {
         bestCollectibleScore > negativeMax * 0.85
 
       const chairAmbientLabels = TRIAL_TRIGGER_ALIASES as readonly string[]
-      const isChairAmbient =
+      let isChairAmbient =
         !!bestAmbient && chairAmbientLabels.includes(bestAmbient)
-      const ambientScoreForHit = isChairAmbient
+      let ambientScoreForHit = isChairAmbient
         ? Math.max(bestAmbientScore, trialAliasSum)
         : bestAmbientScore
-      const ambientHit =
+      let ambientHit =
         !!bestAmbient &&
         (isChairAmbient
           ? trialAliasSum >= CHAIR_AMBIENT_SUM_THRESHOLD ||
@@ -303,7 +313,7 @@ export function useClassifier() {
         // Prefer not to steal focus from a hard ghost lock
         (!accepted || ambientScoreForHit >= bestScore * 0.9)
 
-      // Trial chair from main pass (diluted scores).
+      // Trial chair from main pass (diluted scores) — usually too weak alone.
       let trialHit =
         (trialAliasSum >= TRIAL_ALIAS_SUM_THRESHOLD ||
           trialAliasMax >= TRIAL_MAX_ALIAS_THRESHOLD ||
@@ -311,18 +321,17 @@ export function useClassifier() {
         trialAliasMax > trialNegativeMax * 0.5 &&
         (!accepted || trialAliasMax >= bestScore * 0.9 || trialAliasSum >= bestScore * 0.85)
 
-      // Narrow probe when the big label set only hints at furniture/chair.
-      // ~15-way softmax restores usable chair confidence on real seats.
-      const furnitureScore = scores['furniture'] ?? 0
-      const maybeChair =
-        !trialHit &&
-        (furnitureScore >= 0.1 ||
-          trialAliasMax >= 0.04 ||
-          trialAliasSum >= 0.06)
-      if (maybeChair && classifierRef.current) {
+      // ALWAYS run a narrow chair probe. Xenova CLIP image zero-shot always
+      // softmaxes over the full label set (multi_label is ignored), so the
+      // ~270-way main pass dilutes chair mass below any reliable gate — waiting
+      // for a "hint" from that pass is why field chairs never locked.
+      let debugChairProbeScore = 0
+      let debugChairProbeLabel: string | null = null
+      if (classifierRef.current) {
         const probeLabels = [
           ...new Set<string>([
             ...TRIAL_TRIGGER_ALIASES,
+            ...CHAIR_SCENE_HINT_LABELS,
             'sofa',
             'couch',
             'table',
@@ -333,31 +342,85 @@ export function useClassifier() {
             'none of the above',
           ]),
         ]
-        const probeResults = await classifierRef.current(canvas, probeLabels, {
-          multi_label: false,
-        })
+        const probeResults = await classifierRef.current(canvas, probeLabels)
         const probeScores: Record<string, number> = {}
         for (const r of probeResults) probeScores[r.label] = r.score
-        const probeMax = Math.max(
-          0,
-          ...TRIAL_TRIGGER_ALIASES.map((l) => probeScores[l] ?? 0),
-        )
+        let probeBestLabel: string | null = null
+        let probeMax = 0
+        for (const l of TRIAL_TRIGGER_ALIASES) {
+          const s = probeScores[l] ?? 0
+          if (s > probeMax) {
+            probeMax = s
+            probeBestLabel = l
+          }
+        }
         const probeSum = TRIAL_TRIGGER_ALIASES.reduce(
           (acc, l) => acc + (probeScores[l] ?? 0),
           0,
+        )
+        const probeFurniture = Math.max(
+          probeScores['furniture'] ?? 0,
+          ...(CHAIR_SCENE_HINT_LABELS as readonly string[]).map(
+            (l) => probeScores[l] ?? 0,
+          ),
+        )
+        const probeSeatish = Math.max(
+          probeMax,
+          probeScores['seat'] ?? 0,
+          probeScores['chair'] ?? 0,
+          probeScores['stool'] ?? 0,
         )
         const probeNeg = Math.max(
           probeScores['empty room'] ?? 0,
           probeScores['plain wall'] ?? 0,
           probeScores['none of the above'] ?? 0,
           probeScores['person'] ?? 0,
+          // Soft furniture competitors — don't let sofa/bed veto a clear chair.
+          (probeScores['sofa'] ?? 0) * 0.85,
+          (probeScores['couch'] ?? 0) * 0.85,
+          (probeScores['bed'] ?? 0) * 0.9,
         )
+        const furnitureSeatCombo =
+          probeFurniture >= CHAIR_FURNITURE_COMBO_FURN &&
+          probeSeatish >= CHAIR_FURNITURE_COMBO_SEAT
         const probeHit =
-          (probeMax >= TRIAL_PROBE_THRESHOLD || probeSum >= 0.35) &&
-          probeMax > probeNeg * 0.55
+          ((probeMax >= TRIAL_PROBE_THRESHOLD ||
+            probeSum >= 0.32 ||
+            furnitureSeatCombo) &&
+            probeSeatish > probeNeg * 0.5) ||
+          (furnitureSeatCombo && probeSeatish >= probeNeg)
+        debugChairProbeScore = Math.max(probeMax, furnitureSeatCombo ? probeSeatish : 0)
+        debugChairProbeLabel = probeBestLabel
         if (probeHit) {
           trialHit = true
-          trialScore = Math.max(trialScore, probeMax, probeSum * 0.5)
+          trialScore = Math.max(
+            trialScore,
+            probeMax,
+            probeSum * 0.5,
+            furnitureSeatCombo ? Math.max(probeSeatish, probeFurniture * 0.5) : 0,
+          )
+          // Same classifier result feeds Empty Seat ambient when trial isn't
+          // already stealing the frame in App (sustainedTrial gate there).
+          const ambientChairLabel = probeBestLabel ?? 'chair'
+          if (!isChairAmbient || (bestAmbientScore ?? 0) < probeMax) {
+            bestAmbient = ambientChairLabel
+            bestAmbientScore = Math.max(bestAmbientScore, probeMax, trialScore)
+            isChairAmbient = true
+          }
+          ambientScoreForHit = Math.max(
+            ambientScoreForHit,
+            probeMax,
+            probeSum,
+            trialScore,
+          )
+          ambientHit =
+            ambientScoreForHit >= CHAIR_AMBIENT_CONFIDENCE_THRESHOLD ||
+            probeSum >= CHAIR_AMBIENT_SUM_THRESHOLD ||
+            furnitureSeatCombo
+          // Don't steal a hard ghost lock
+          if (accepted && ambientScoreForHit < bestScore * 0.85) {
+            ambientHit = false
+          }
         }
       }
 
@@ -380,6 +443,16 @@ export function useClassifier() {
         ? TRIAL_TRIGGER_LABEL
         : null
 
+      // Top label across the main pass for ?debugScan=1 HUD.
+      let debugTopLabel: string | null = null
+      let debugTopScore = 0
+      for (const [lab, sc] of Object.entries(scores)) {
+        if (sc > debugTopScore) {
+          debugTopScore = sc
+          debugTopLabel = lab
+        }
+      }
+
       setDetection({
         label,
         confidence,
@@ -395,10 +468,14 @@ export function useClassifier() {
         secretConfidence: secretScore,
         ambientScanLabel: ambientHit ? bestAmbient : null,
         ambientScanConfidence: ambientHit && isChairAmbient
-          ? Math.max(bestAmbientScore, trialAliasSum)
+          ? Math.max(bestAmbientScore, trialAliasSum, trialScore)
           : bestAmbientScore,
         spookboxMakerLabel: makerHit ? bestMaker : null,
         spookboxMakerConfidence: bestMakerScore,
+        debugTopLabel,
+        debugTopScore,
+        debugChairProbeScore,
+        debugChairProbeLabel,
       })
       setPlaygroundDetected(!!playgroundHit)
 
@@ -471,13 +548,16 @@ export function useClassifier() {
 
       if (ambientHit && bestAmbient) {
         lastAmbientSeenRef.current = t
+        const ambSustainNeed = isChairAmbient
+          ? CHAIR_AMBIENT_SUSTAIN_MS
+          : SUSTAIN_MS
         if (ambientCandidateRef.current !== bestAmbient) {
           ambientCandidateRef.current = bestAmbient
           ambientSustainRef.current = t
           setSustainedAmbientScanLabel(null)
         } else if (
           ambientSustainRef.current &&
-          t - ambientSustainRef.current >= SUSTAIN_MS
+          t - ambientSustainRef.current >= ambSustainNeed
         ) {
           setSustainedAmbientScanLabel(bestAmbient)
         }

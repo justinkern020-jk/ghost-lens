@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export function useCamera(enabled: boolean) {
+export function useCamera(enabled: boolean, restartToken = 0) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [ready, setReady] = useState(false)
@@ -25,6 +25,7 @@ export function useCamera(enabled: boolean) {
     let cancelled = false
     ;(async () => {
       try {
+        setReady(false)
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -59,7 +60,7 @@ export function useCamera(enabled: boolean) {
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
-  }, [enabled])
+  }, [enabled, restartToken])
 
   return { attach, videoRef, ready, error }
 }

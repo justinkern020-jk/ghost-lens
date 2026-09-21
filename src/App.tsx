@@ -210,6 +210,15 @@ function readForceTrial(): boolean {
   }
 }
 
+/** Temporary on-screen CLIP top-label HUD for field chair debugging. */
+function readDebugScan(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('debugScan') === '1'
+  } catch {
+    return false
+  }
+}
+
 function readForceDemonWin(): boolean {
   try {
     const q = new URLSearchParams(window.location.search)
@@ -273,6 +282,7 @@ export default function App() {
   const [bpm, setBpm] = useState(56)
   const [hitFlash, setHitFlash] = useState(false)
   const [captureFlash, setCaptureFlash] = useState(false)
+  const [camRestartToken, setCamRestartToken] = useState(0)
   const [saveToast, setSaveToast] = useState<string | null>(null)
   const [savePanelOpen, setSavePanelOpen] = useState(false)
   const fakeOutDoneRef = useRef(false)
@@ -445,7 +455,8 @@ export default function App() {
   // Always show getUserMedia preview while hunting unless WebXR owns the view.
   // WebXR-capable phones used to stay on a black screen until "Enter AR".
   const useFallbackCam = started && dusk.allowed && !arRunning
-  const camera = useCamera(useFallbackCam)
+  const camera = useCamera(useFallbackCam, camRestartToken)
+  const debugScan = readDebugScan()
   const {
     ready: modelReady,
     loadingMsg,
@@ -1532,8 +1543,8 @@ export default function App() {
     await audioRef.current.ensure()
   }
 
-  /** Exit AR / overlay hunt back to boot hub without relying on browser Back. */
-  const leaveHunt = useCallback(() => {
+  /** Full exit to boot hub (deliberate leave / death / dusk lock). */
+  const exitHuntToHub = useCallback(() => {
     appearAtRef.current = null
     placedForRef.current = null
     setAggression(0)
@@ -1556,9 +1567,83 @@ export default function App() {
     setJournalOpen(false)
     setRelicsOpen(false)
     setSavePanelOpen(false)
+    setActiveAmbientScan(null)
+    setCaptureFlash(false)
+    setCinematicLock(false)
     setStatusLine('')
     setStarted(false)
   }, [arRunning, resetGhost])
+
+  const visibleCinematicOpen =
+    finaleActive ||
+    epilogueOpen ||
+    werewolfActive ||
+    smileEpilogueOpen ||
+    kellerWestEpilogueOpen ||
+    endCardOpen
+
+  /** Black / blank mid-hunt: no camera, broken AR canvas, orphan lock, stuck flash. */
+  const huntViewStuck =
+    started &&
+    !dead &&
+    dusk.allowed &&
+    (captureFlash ||
+      (cinematicLock && !visibleCinematicOpen) ||
+      (useFallbackCam && (!camera.ready || !!camera.error)) ||
+      arRunning)
+
+  /**
+   * Leave hunt: first clear stuck black/blank overlays (or drop AR back to
+   * camera). Only fully exit to the hub when the hunt view already looks healthy.
+   */
+  const onLeaveHuntPress = useCallback(() => {
+    // Orphan cinematic lock / stuck shutter — dismiss without tearing down hunt.
+    if (cinematicLock && !visibleCinematicOpen) {
+      setCinematicLock(false)
+      setCaptureFlash(false)
+      setStatusLine('Cleared stuck overlay — keep hunting.')
+      return
+    }
+    if (captureFlash) {
+      setCaptureFlash(false)
+      setStatusLine('Cleared capture flash — keep hunting.')
+      return
+    }
+    // WebXR / AR often leaves a black canvas; drop back to getUserMedia preview.
+    if (arRunning) {
+      void arSessionRef.current?.end()
+      setArRunning(false)
+      setAnchored(false)
+      placedForRef.current = null
+      arSessionRef.current?.hideGhost()
+      setStatusLine('Left AR view — camera preview restored. Hunt continues.')
+      return
+    }
+    // Blank / errored camera: remount getUserMedia instead of dumping to hub.
+    if (useFallbackCam && (!camera.ready || camera.error)) {
+      setCamRestartToken((n) => n + 1)
+      setStatusLine(
+        camera.error
+          ? 'Retrying camera… allow permission if prompted.'
+          : 'Restarting camera…',
+      )
+      return
+    }
+    // Healthy hunt HUD → deliberate full exit.
+    exitHuntToHub()
+  }, [
+    arRunning,
+    camera.error,
+    camera.ready,
+    cinematicLock,
+    captureFlash,
+    exitHuntToHub,
+    useFallbackCam,
+    visibleCinematicOpen,
+  ])
+
+  /** @deprecated name kept for death/dusk callers that mean full exit */
+  const leaveHunt = exitHuntToHub
 
   const startWebXr = async () => {
     if (!dusk.allowed) {
@@ -2439,7 +2524,7 @@ export default function App() {
             {forceTrial ? 'Force trial (test): ON' : 'Force trial (test): OFF'}
           </button>
           <p className="boot-hint">
-            Dev: <code>?forceIntro=1</code> · <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
+            Dev: <code>?debugScan=1</code> · <code>?forceIntro=1</code> · <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
             <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
             <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
@@ -2560,7 +2645,9 @@ export default function App() {
         loadingMsg={loadingMsg}
         modelError={modelError}
         duskPaused={!dusk.allowed}
-        onLeaveHunt={leaveHunt}
+        onLeaveHunt={onLeaveHuntPress}
+        leaveHuntLabel={huntViewStuck ? 'Clear view' : 'Leave hunt'}
+        debugScan={debugScan}
         captureDisabled={
           !dusk.allowed ||
           !(ghostShouldShow || demonVisible || trialVisible || secretVisible) ||

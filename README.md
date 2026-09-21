@@ -40,6 +40,10 @@ Use in-app **Save** to **download JSON** or **import** a backup — clearing bro
 
 Stylized Three.js / WebXR dread (not photoreal gore): meaner entity stages (calm → wrong → nightmare), stutter freezes, micro-teleports, fake-out lunges on hesitation, last-20% approach rush, heavy hit FX (RGB split, shake, invert flash), louder dread bed with proximity duck/spike and jump-scare stingers. Capture payoff: shutter flash, calm relief, polaroid stamps (FIELD SEAL / FIRST).
 
+## Leave hunt / black screen
+
+**Leave hunt** does **not** always dump you to the boot hub. Mid-hunt, if the view is stuck black/blank (broken AR canvas, camera not ready, orphan cinematic lock, stuck capture flash), the control reads **Clear view** and recovers: ends AR back to the camera preview, remounts getUserMedia, or clears the overlay — hunt session stays active. A second tap on a healthy hunt HUD (label **Leave hunt**) exits to the hub. Death / dusk-lock **Leave hunt** still exits fully.
+
 ## Dusk gate
 
 The hunt only works at **dusk** (local device time):
@@ -54,7 +58,7 @@ Outside the window, Enter AR and the camera hunt are blocked with: *“The dead 
 
 **Developer override**
 
-- Query: `?forceDusk=1` · `?forceFullMoon=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` · `?forceArchivistStun=1`
+- Query: `?debugScan=1` · `?forceDusk=1` · `?forceFullMoon=1` · `?forceTrial=1` · `?forceDemonWin=1` · `?forceEpilogue=1` · `?forceWerewolf=1` · `?forceTrueEnd=1` · `?forceSecretGhost=1` · `?forceNGPlus=1` · `?forceScan=1` · `?forceSpookboxMaker=1` · `?forceSpookbox=1` · `?forceArchivistStun=1`
 - Boot screen buttons: **Force dusk (test)** · **Force full moon (test)**
 - In-hunt: long-press the title area (~1s) for dusk
 
@@ -151,7 +155,9 @@ Wrong item in a fight = weak/useless. Prepare a tool in the shop, then **Use** d
 
 ## Vision
 
-On-device **CLIP** via `@xenova/transformers` (`Xenova/clip-vit-base-patch32`). Labels include the four triggers, trial **chair**, playground scene, stranger props, and negatives. Inference ~every 700ms; sustain ~1.2s to spawn; ~1.8s without a hit and it flees.
+On-device **CLIP** via `@xenova/transformers` (`Xenova/clip-vit-base-patch32`). Labels include the four triggers, trial **chair**, playground scene, stranger props, ambient props, and negatives. Inference ~every 700ms; sustain ~1.2s to spawn (~0.4s trial / ~0.5s Empty Seat); ~1.8s without a hit and it flees.
+
+**Chair / Empty Seat note:** Xenova’s image zero-shot always softmaxes over the full candidate list (`multi_label` is ignored), so a ~270-way pass dilutes chair mass. A **narrow chair probe** always runs after the main pass; trial lock and **Empty Seat** ambient both read that probe. Field check: `?debugScan=1&forceDusk=1` → point at a dining/office chair → top HUD shows CLIP top label + chair probe; expect trial lock or Empty Seat within ~1s.
 
 
 ## Trial ghost — The Thin One

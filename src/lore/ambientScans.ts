@@ -642,6 +642,13 @@ export const AMBIENT_SCANS: AmbientScanEntry[] = [
       'desk chair',
       'folding chair',
       'kitchen chair',
+      'windsor chair',
+      'wingback chair',
+      'side chair',
+      'lounge chair',
+      'plastic chair',
+      'bar stool',
+      'lawn chair',
     ],
     title: 'Empty Seat',
     reading:

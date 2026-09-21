@@ -12,6 +12,10 @@ interface Props {
   /** Dusk gate blocked — scanning intentionally paused. */
   duskPaused?: boolean
   onLeaveHunt?: () => void
+  /** Button label for leave/recover control. */
+  leaveHuntLabel?: string
+  /** Show top CLIP label + chair probe (?debugScan=1). */
+  debugScan?: boolean
   captureDisabled: boolean
   onCapture: () => void
   onOpenGallery: () => void
@@ -57,6 +61,8 @@ export function Hud({
   modelError = null,
   duskPaused = false,
   onLeaveHunt,
+  leaveHuntLabel = 'Leave hunt',
+  debugScan = false,
   captureDisabled,
   onCapture,
   onOpenGallery,
@@ -160,6 +166,27 @@ export function Hud({
           )}
         </div>
       </div>
+
+      {debugScan && (
+        <div className="debug-scan-pill" role="status" aria-live="polite">
+          CLIP top:{' '}
+          <strong>
+            {detection.debugTopLabel ?? '—'}{' '}
+            {Math.round((detection.debugTopScore ?? 0) * 100)}%
+          </strong>
+          {' · '}chair probe:{' '}
+          <strong>
+            {detection.debugChairProbeLabel ?? '—'}{' '}
+            {Math.round((detection.debugChairProbeScore ?? 0) * 100)}%
+          </strong>
+          {detection.trialLabel
+            ? ` · trial ${Math.round((detection.trialConfidence ?? 0) * 100)}%`
+            : ''}
+          {detection.ambientScanLabel
+            ? ` · ambient ${detection.ambientScanLabel} ${Math.round((detection.ambientScanConfidence ?? 0) * 100)}%`
+            : ''}
+        </div>
+      )}
 
       <div className="heartbeat-meter" data-critical={critical || undefined}>
         <div className="heartbeat-label">
@@ -305,7 +332,7 @@ export function Hud({
             className="btn ghost-btn leave-hunt-btn"
             onClick={onLeaveHunt}
           >
-            Leave hunt
+            {leaveHuntLabel}
           </button>
         )}
         <button

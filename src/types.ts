@@ -27,6 +27,23 @@ export const TRIAL_TRIGGER_ALIASES = [
   'folding chair',
   'kitchen chair',
   'plastic chair',
+  'windsor chair',
+  'wingback chair',
+  'side chair',
+  'dining room chair',
+  'living room chair',
+  'lounge chair',
+  'camp chair',
+  'bean bag chair',
+] as const
+
+/** Scene / category labels that often win over specific chair aliases in CLIP. */
+export const CHAIR_SCENE_HINT_LABELS = [
+  'furniture',
+  'living room',
+  'dining room',
+  'office',
+  'interior',
 ] as const
 
 /** All spirit kinds including trial echo, mid-boss Warden, and endgame Demon. */
@@ -157,6 +174,10 @@ export const CANDIDATE_LABELS = [
   'plain wall',
   'person',
   'furniture',
+  'living room',
+  'dining room',
+  'office',
+  'interior',
   'none of the above',
 ] as const
 
@@ -180,6 +201,12 @@ export interface DetectionResult {
   ambientScanConfidence?: number
   spookboxMakerLabel?: string | null
   spookboxMakerConfidence?: number
+  /** Top CLIP label from the latest frame (debug / HUD). */
+  debugTopLabel?: string | null
+  debugTopScore?: number
+  /** Best chair-alias score from the narrow probe pass. */
+  debugChairProbeScore?: number
+  debugChairProbeLabel?: string | null
 }
 
 export interface SpiritLore {

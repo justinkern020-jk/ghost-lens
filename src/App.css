@@ -3339,3 +3339,27 @@ html, body, #root {
   font-size: 18px;
   color: #e8e0d0;
 }
+
+
+/* Field debug — ?debugScan=1 top CLIP / chair probe readout */
+.debug-scan-pill {
+  position: absolute;
+  top: 52px;
+  left: 10px;
+  right: 10px;
+  z-index: 30;
+  pointer-events: none;
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  color: #d8f5e4;
+  background: rgba(0, 12, 6, 0.82);
+  border: 1px solid var(--acid-dim);
+  padding: 6px 10px;
+  text-align: left;
+  word-break: break-word;
+}
+.debug-scan-pill strong {
+  color: var(--acid);
+  font-weight: 700;
+}
