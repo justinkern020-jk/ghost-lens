@@ -81,6 +81,7 @@ import {
 import { WerewolfAttack } from './components/WerewolfAttack'
 import { AmbientScanCard } from './components/AmbientScanCard'
 import { BazaarIntro, type BazaarIntroChoice } from './components/BazaarIntro'
+import { TitleSplash } from './components/TitleSplash'
 import { BazaarSmileEpilogue } from './components/BazaarSmileEpilogue'
 import { BazaarKellerWestEpilogue } from './components/BazaarKellerWestEpilogue'
 import {
@@ -255,6 +256,16 @@ function readForceIntro(): boolean {
   }
 }
 
+function readForceTitle(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('forceTitle') === '1'
+  } catch {
+    return false
+  }
+}
+
+
 function readForceStranger(): string | null {
   try {
     const q = new URLSearchParams(window.location.search)
@@ -298,6 +309,8 @@ export default function App() {
     }
   })
   const [introKey, setIntroKey] = useState(0)
+  /** Cabals title splash — cinematic opener before intro / boot hub. */
+  const [titleOpen, setTitleOpen] = useState(true)
   const [forceBoss, setForceBoss] = useState(readForceBoss)
   const [forcePlayground, setForcePlayground] = useState(readForcePlayground)
   const [forceTrial, setForceTrial] = useState(readForceTrial)
@@ -1532,6 +1545,10 @@ export default function App() {
     setIntroOpen(false)
   }
 
+  const dismissTitleSplash = () => {
+    setTitleOpen(false)
+  }
+
   const openIntroReplay = () => {
     setSavePanelOpen(false)
     setIntroKey((k) => k + 1)
@@ -1572,6 +1589,7 @@ export default function App() {
     setCinematicLock(false)
     setStatusLine('')
     setStarted(false)
+    setTitleOpen(readForceTitle())
   }, [arRunning, resetGhost])
 
   const visibleCinematicOpen =
@@ -2399,6 +2417,22 @@ export default function App() {
                       ? 'WEBXR READY'
                       : 'OVERLAY FALLBACK'
 
+  if (!started && titleOpen) {
+    let showSkip = false
+    try {
+      showSkip = Boolean(getSave().introSeen) || readForceTitle()
+    } catch {
+      showSkip = false
+    }
+    return (
+      <TitleSplash
+        showSkip={showSkip}
+        onBegin={dismissTitleSplash}
+        onSkip={dismissTitleSplash}
+      />
+    )
+  }
+
   if (!started && introOpen) {
     return <BazaarIntro key={introKey} open onComplete={onIntroComplete} audio={audioRef.current} />
   }
@@ -2524,7 +2558,7 @@ export default function App() {
             {forceTrial ? 'Force trial (test): ON' : 'Force trial (test): OFF'}
           </button>
           <p className="boot-hint">
-            Dev: <code>?debugScan=1</code> · <code>?forceIntro=1</code> · <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
+            Dev: <code>?debugScan=1</code> · <code>?forceTitle=1</code> · <code>?forceIntro=1</code> · <code>?forceDusk=1</code> · <code>?forceFullMoon=1</code> ·{' '}
             <code>?forceBoss=1</code> · <code>?forcePlayground=1</code> ·{' '}
             <code>?forceTrial=1</code> ·{' '}
             <code>?forceDemonWin=1</code> · <code>?forceEpilogue=1</code> ·{' '}
